@@ -1,8 +1,9 @@
-README.md
-
-*.bat
-_images
-docs/_build/
-*.db
-
 node_modules
+bundle.js
+.DS_Store
+test/*.js
+dist
+.env
+public
+docs
+.claude

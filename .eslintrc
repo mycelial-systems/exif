@@ -1,0 +1,55 @@
+{
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+        "project": "./tsconfig.json"
+    },
+    "ignorePatterns": [
+        "lib.es5.d.ts"
+    ],
+    "extends": [
+        "standard",
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
+    "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unused-vars": [
+            "error",
+            {
+                "argsIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "caughtErrorsIgnorePattern": "^_"
+            }
+        ],
+        "@typescript-eslint/consistent-type-imports": "error",
+        "indent": [
+            "error",
+            4,
+            {
+                "SwitchCase": 1
+            }
+        ],
+        "no-multiple-empty-lines": [
+            "error",
+            {
+                "max": 1,
+                "maxEOF": 1
+            }
+        ],
+        "operator-linebreak": "off",
+        "multiline-ternary": "off",
+        "comma-dangle": "off",
+        "no-trailing-spaces": [
+            "error",
+            {
+                "skipBlankLines": true
+            }
+        ],
+        "camelcase": "off",
+        "eqeqeq": "off",
+        "no-var": "off",
+        "no-empty": "off",
+        "no-cond-assign": "off",
+        "no-useless-escape": "off"
+    }
+}
