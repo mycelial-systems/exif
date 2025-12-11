@@ -1,5 +1,5 @@
 {
-  "name": "@susbtrate-system/piexifjs",
+  "name": "@susbtrate-system/exif",
   "type": "module",
   "version": "1.0.6",
   "description": "Read and write exif data.",
@@ -72,7 +72,7 @@
   ],
   "author": "hMatoba",
   "contributors": [
-
+    "nichoth <nichoth@nichoth.com> (https://nichoth.com)"
   ],
   "license": "MIT",
   "bugs": {

@@ -1,4 +1,5 @@
-dist/*
-public/*
-test/*.js
-vite.config.ts
+dist
+node_modules
+coverage
+phestum.js
+tests/mtest.js

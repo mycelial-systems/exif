@@ -6,7 +6,7 @@ import piexif from '../src/index.js'
 // When bundled and piped to node, we need to use process.cwd()
 const testFilesDir = path.join(process.cwd(), 'test', 'files')
 
-test('basic load, dump, and insert', async t => {
+test('basic load, dump, and insert', t => {
     const jpeg = fs.readFileSync(path.join(testFilesDir, 'noexif.jpg'))
     const data = jpeg.toString('binary')
 
@@ -32,13 +32,15 @@ test('basic load, dump, and insert', async t => {
     const exifObj2 = piexif.load(newData)
 
     // Remove auto-generated fields
-    delete exifObj2['0th'][34665]
-    delete exifObj2['0th'][34853]
+    if (exifObj2['0th']) {
+        delete exifObj2['0th'][34665]
+        delete exifObj2['0th'][34853]
+    }
     delete exifObj2.Interop
     delete exifObj2['1st']
     delete exifObj2.thumbnail
 
-    t.deepEqual(exifObj, exifObj2, 'exif data should roundtrip correctly')
+    t.deepEqual(exifObj as any, exifObj2, 'exif data should roundtrip correctly')
 })
 
 test('roundtrip test - load, dump, insert', async t => {
@@ -60,12 +62,15 @@ test('roundtrip test - load, dump, insert', async t => {
         const newJpeg = piexif.insert(exifStr, noexif)
         const exifObj2 = piexif.load(newJpeg)
 
-        for (const ifd in exifObj1) {
+        for (const ifdKey in exifObj1) {
+            const ifd = ifdKey as keyof typeof exifObj1
             if (ifd === 'thumbnail') {
                 continue
             }
+            const ifdObj = exifObj1[ifd]
+            if (!ifdObj) continue
 
-            for (const tag in exifObj1[ifd]) {
+            for (const tag in ifdObj) {
                 const tagNum = parseInt(tag)
                 if ((ifd === '0th') && ([34665, 34853].indexOf(tagNum) > -1)) {
                     continue
@@ -76,8 +81,8 @@ test('roundtrip test - load, dump, insert', async t => {
                 }
 
                 t.deepEqual(
-                    exifObj1[ifd][tag],
-                    exifObj2[ifd][tag],
+                    exifObj1[ifd]![tagNum],
+                    exifObj2[ifd]![tagNum],
                     `${file} - ${ifd} tag ${tag} should match`
                 )
             }
@@ -110,9 +115,13 @@ test('remove test', async t => {
             delete exifObj.thumbnail
         }
 
-        for (const ifd in exifObj) {
-            for (const _tag in exifObj[ifd]) {
-                keyNum += 1
+        for (const ifdKey in exifObj) {
+            const ifd = ifdKey as keyof typeof exifObj
+            const ifdObj = exifObj[ifd]
+            if (ifdObj && typeof ifdObj === 'object') {
+                for (const _tag in ifdObj) {
+                    keyNum += 1
+                }
             }
         }
 

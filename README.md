@@ -1,28 +1,40 @@
-Piexifjs
-========
+# `exif`
 
-.. image:: https://travis-ci.org/hMatoba/piexifjs.svg?branch=master
-    :target: https://travis-ci.org/hMatoba/piexifjs
-.. image:: https://badge.fury.io/js/piexifjs.svg
-    :target: http://badge.fury.io/js/piexifjs
+Read and modify exif data. Library to modify exif in JS
+(both in-browser and Node.js).
 
-Read and modify exif. Library to modify exif in JS(both client-side and Node.js).
-http://piexifjs.readthedocs.org/en/latest/index.html
 
-Notice and Warning!
--------------------
+<details><summary><h2>Contents</h2></summary>
+<!-- toc -->
+</details>
 
-We are implementing v2.0. This version would include a few big changes. If you won't ready to use, don't update this library.
+
+## Install
  
-```
-npm install piexifjs@1.0.4
+```sh
+npm i -S @substrate-system/exit
 ```
  
-Thank you for using piexifjs!
 
+## Use
 
-How to Use
-----------
+```ts
+import exif from '@substrate-system/exif'
+
+const exifObj = exif.load(jpegData)
+
+const exifString = exif.dump(exifObj)
+
+exif.insert(exifString, jpegData)
+```
+
+### `insert`
+
+Insert exif into JPEG. If jpegData is DataURL, returns JPEG as DataURL.
+Else if jpegData is binary as string, returns JPEG as binary as string.
+
+```js
+```
 
 - :code:`var exifObj = piexif.load(jpegData)` - Get exif data as *object*. *jpegData* must be a *string* that starts with "\data:image/jpeg;base64,"(DataURL), "\\xff\\xd8", or "Exif".
 - :code:`var exifStr = piexif.dump(exifObj)` - Get exif as *string* to insert into JPEG.
