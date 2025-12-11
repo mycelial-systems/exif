@@ -1,85 +1,81 @@
 import { TAGS, ExifIFD, ImageIFD } from './tags'
+import {
+    pack,
+    unpack,
+    concat,
+    repeat,
+    stringToBytes,
+    bytesToString,
+    equals
+} from './binary-utils'
 
 export interface IExifElement {
-    [key:number]:any;
+    [key: number]: any;
 
     // Allow string keys for internal properties like first_ifd_pointer
-    [key:string]:any;
+    [key: string]: any;
 }
 
 export interface IExif {
-    '0th'?:IExifElement;
-    '1st'?:IExifElement;
-    Exif?:IExifElement;
-    GPS?:IExifElement;
-    Interop?:IExifElement;
-    thumbnail?:string|null;
+    '0th'?: IExifElement;
+    '1st'?: IExifElement;
+    Exif?: IExifElement;
+    GPS?: IExifElement;
+    Interop?: IExifElement;
+    thumbnail?: Uint8Array | null;
 }
 
-export function remove (jpeg:string):string {
-    let b64 = false
-    if (jpeg.slice(0, 2) == '\xff\xd8') {
-    } else if (jpeg.slice(0, 23) == 'data:image/jpeg;base64,' || jpeg.slice(0, 22) == 'data:image/jpg;base64,') {
-        jpeg = atob(jpeg.split(',')[1])
-        b64 = true
-    } else {
+const JPEG_MARKER = new Uint8Array([0xff, 0xd8])
+const EXIF_MARKER = new Uint8Array([0xff, 0xe1])
+const SOS_MARKER = new Uint8Array([0xff, 0xda])
+const EXIF_HEADER = stringToBytes('Exif\x00\x00')
+const TIFF_HEADER_II = new Uint8Array([0x49, 0x49]) // Little-endian
+const TIFF_HEADER_MM = new Uint8Array([0x4d, 0x4d]) // Big-endian
+
+export function remove (jpeg:Uint8Array):Uint8Array {
+    if (!equals(jpeg, JPEG_MARKER, 0, 0, 2)) {
         throw new Error('Given data is not jpeg.')
     }
 
     const segments = splitIntoSegments(jpeg)
     const newSegments = segments.filter(function (seg) {
-        return !(seg.slice(0, 2) == '\xff\xe1' &&
-            seg.slice(4, 10) == 'Exif\x00\x00')
+        return !(equals(seg, EXIF_MARKER, 0, 0, 2) &&
+            equals(seg, EXIF_HEADER, 4, 0, 6))
     })
 
-    let new_data = newSegments.join('')
-    if (b64) {
-        new_data = 'data:image/jpeg;base64,' + btoa(new_data)
-    }
-
-    return new_data
+    return concat(...newSegments)
 }
 
-export function insert (exif:string, jpeg:string):string {
-    let b64 = false
-    if (exif.slice(0, 6) != '\x45\x78\x69\x66\x00\x00') {
+export function insert (exif:Uint8Array, jpeg:Uint8Array):Uint8Array {
+    if (!equals(exif, EXIF_HEADER, 0, 0, 6)) {
         throw new Error('Given data is not exif.')
     }
-    if (jpeg.slice(0, 2) == '\xff\xd8') {
-    } else if (jpeg.slice(0, 23) == 'data:image/jpeg;base64,' || jpeg.slice(0, 22) == 'data:image/jpg;base64,') {
-        jpeg = atob(jpeg.split(',')[1])
-        b64 = true
-    } else {
+    if (!equals(jpeg, JPEG_MARKER, 0, 0, 2)) {
         throw new Error('Given data is not jpeg.')
     }
 
-    const exifStr = '\xff\xe1' + pack('>H', [exif.length + 2]) + exif
+    const length = exif.length + 2
+    const exifSegment = concat(
+        EXIF_MARKER,
+        pack('>H', [length]),
+        exif
+    )
     const segments = splitIntoSegments(jpeg)
-    let new_data = mergeSegments(segments, exifStr)
-    if (b64) {
-        new_data = 'data:image/jpeg;base64,' + btoa(new_data)
-    }
-
-    return new_data
+    return mergeSegments(segments, exifSegment)
 }
 
-export function load (data:string):IExif {
-    let input_data
-    if (typeof (data) === 'string') {
-        if (data.slice(0, 2) == '\xff\xd8') {
-            input_data = data
-        } else if (data.slice(0, 23) == 'data:image/jpeg;base64,' || data.slice(0, 22) == 'data:image/jpg;base64,') {
-            input_data = atob(data.split(',')[1])
-        } else if (data.slice(0, 4) == 'Exif') {
-            input_data = data.slice(6)
-        } else {
-            throw new Error("'load' gots invalid file data.")
-        }
+export function load (data:Uint8Array):IExif {
+    let inputData:Uint8Array
+
+    if (equals(data, JPEG_MARKER, 0, 0, 2)) {
+        inputData = data
+    } else if (equals(data, stringToBytes('Exif'), 0, 0, 4)) {
+        inputData = data.subarray(6)
     } else {
-        throw new Error("'load' gots invalid type argument.")
+        throw new Error("'load' gots invalid file data.")
     }
 
-    const exif_dict:IExif = {
+    const exifDict:IExif = {
         '0th': {},
         Exif: {},
         GPS: {},
@@ -87,519 +83,640 @@ export function load (data:string):IExif {
         '1st': {},
         thumbnail: null
     }
-    const exifReader = new ExifReader(input_data)
+
+    const exifReader = new ExifReader(inputData)
     if (exifReader.tiftag === null) {
-        return exif_dict
+        return exifDict
     }
 
-    if (exifReader.tiftag.slice(0, 2) == '\x49\x49') {
-        exifReader.endian_mark = '<'
+    if (equals(exifReader.tiftag, TIFF_HEADER_II, 0, 0, 2)) {
+        exifReader.endianMark = '<'
     } else {
-        exifReader.endian_mark = '>'
+        exifReader.endianMark = '>'
     }
 
-    let pointer = unpack(exifReader.endian_mark + 'L',
-        exifReader.tiftag.slice(4, 8))[0]
-    exif_dict['0th'] = exifReader.get_ifd(pointer, '0th')
+    let pointer = unpack(exifReader.endianMark + 'L',
+        exifReader.tiftag.subarray(4, 8))[0]
+    exifDict['0th'] = exifReader.getIfd(pointer, '0th')
 
-    const first_ifd_pointer = exif_dict['0th'].first_ifd_pointer
-    delete exif_dict['0th'].first_ifd_pointer
+    const firstIfdPointer = exifDict['0th'].first_ifd_pointer
+    delete exifDict['0th'].first_ifd_pointer
 
-    if (34665 in exif_dict['0th']) {
-        pointer = exif_dict['0th'][34665]
-        exif_dict.Exif = exifReader.get_ifd(pointer, 'Exif')
+    if (34665 in exifDict['0th']) {
+        pointer = exifDict['0th'][34665]
+        exifDict.Exif = exifReader.getIfd(pointer, 'Exif')
     }
-    if (34853 in exif_dict['0th']) {
-        pointer = exif_dict['0th'][34853]
-        exif_dict.GPS = exifReader.get_ifd(pointer, 'GPS')
+    if (34853 in exifDict['0th']) {
+        pointer = exifDict['0th'][34853]
+        exifDict.GPS = exifReader.getIfd(pointer, 'GPS')
     }
-    if (40965 in exif_dict.Exif!) {
-        pointer = exif_dict.Exif![40965]
-        exif_dict.Interop = exifReader.get_ifd(pointer, 'Interop')
+    if (40965 in exifDict.Exif!) {
+        pointer = exifDict.Exif![40965]
+        exifDict.Interop = exifReader.getIfd(pointer, 'Interop')
     }
-    if (first_ifd_pointer != '\x00\x00\x00\x00') {
-        pointer = unpack(exifReader.endian_mark + 'L',
-            first_ifd_pointer)[0]
-        exif_dict['1st'] = exifReader.get_ifd(pointer, '1st')
-        if ((513 in exif_dict['1st']) && (514 in exif_dict['1st'])) {
-            const end = exif_dict['1st'][513] + exif_dict['1st'][514]
-            const thumb = exifReader.tiftag.slice(exif_dict['1st'][513], end)
-            exif_dict.thumbnail = thumb
+    if (!equals(firstIfdPointer, repeat(0, 4))) {
+        pointer = unpack(exifReader.endianMark + 'L',
+            firstIfdPointer)[0]
+        exifDict['1st'] = exifReader.getIfd(pointer, '1st')
+        if ((513 in exifDict['1st']) && (514 in exifDict['1st'])) {
+            const end = exifDict['1st'][513] + exifDict['1st'][514]
+            const thumb = exifReader.tiftag.subarray(exifDict['1st'][513], end)
+            exifDict.thumbnail = thumb
         }
     }
 
-    return exif_dict
+    return exifDict
 }
 
-export function dump (exif_dict_original:any):string {
+export function dump (exifDictOriginal:any):Uint8Array {
     const TIFF_HEADER_LENGTH = 8
 
-    const exif_dict = copy(exif_dict_original)
-    const header = 'Exif\x00\x00\x4d\x4d\x00\x2a\x00\x00\x00\x08'
-    let exif_is = false
-    let gps_is = false
-    let interop_is = false
-    let first_is = false
+    const exifDict = copy(exifDictOriginal)
+    const header = concat(
+        stringToBytes('Exif\x00\x00'),
+        stringToBytes('\x4d\x4d\x00\x2a\x00\x00\x00\x08')
+    )
+    let exifIs = false
+    let gpsIs = false
+    let interopIs = false
+    let firstIs = false
 
-    let zeroth_ifd,
-        exif_ifd,
-        interop_ifd,
-        gps_ifd,
-        first_ifd
+    let zerothIfd:IExifElement
+    let exifIfd:IExifElement = {}
+    let interopIfd:IExifElement = {}
+    let gpsIfd:IExifElement = {}
+    let firstIfd:IExifElement = {}
 
-    if ('0th' in exif_dict) {
-        zeroth_ifd = exif_dict['0th']
+    if ('0th' in exifDict) {
+        zerothIfd = exifDict['0th']
     } else {
-        zeroth_ifd = {}
+        zerothIfd = {}
     }
 
-    if ((('Exif' in exif_dict) && (Object.keys(exif_dict.Exif).length)) ||
-        (('Interop' in exif_dict) && (Object.keys(exif_dict.Interop).length))) {
-        zeroth_ifd[34665] = 1
-        exif_is = true
-        exif_ifd = exif_dict.Exif
-        if (('Interop' in exif_dict) && Object.keys(exif_dict.Interop).length) {
-            exif_ifd[40965] = 1
-            interop_is = true
-            interop_ifd = exif_dict.Interop
-        } else if (Object.keys(exif_ifd).indexOf(ExifIFD.InteroperabilityTag.toString()) > -1) {
-            delete exif_ifd[40965]
+    if (
+        (('Exif' in exifDict) && (Object.keys(exifDict.Exif).length)) ||
+        (('Interop' in exifDict) && (Object.keys(exifDict.Interop).length))
+    ) {
+        zerothIfd[34665] = 1
+        exifIs = true
+        exifIfd = exifDict.Exif
+        if (('Interop' in exifDict) && Object.keys(exifDict.Interop).length) {
+            exifIfd[40965] = 1
+            interopIs = true
+            interopIfd = exifDict.Interop
+        } else if (
+            Object.keys(exifIfd)
+                .indexOf(ExifIFD.InteroperabilityTag.toString()) > -1
+        ) {
+            delete exifIfd[40965]
         }
-    } else if (Object.keys(zeroth_ifd).indexOf(ImageIFD.ExifTag.toString()) > -1) {
-        delete zeroth_ifd[34665]
+    } else if (
+        Object.keys(zerothIfd).indexOf(ImageIFD.ExifTag.toString()) > -1
+    ) {
+        delete zerothIfd[34665]
     }
 
-    if (('GPS' in exif_dict) && (Object.keys(exif_dict.GPS).length)) {
-        zeroth_ifd[ImageIFD.GPSTag] = 1
-        gps_is = true
-        gps_ifd = exif_dict.GPS
-    } else if (Object.keys(zeroth_ifd).indexOf(ImageIFD.GPSTag.toString()) > -1) {
-        delete zeroth_ifd[ImageIFD.GPSTag]
+    if (('GPS' in exifDict) && (Object.keys(exifDict.GPS).length)) {
+        zerothIfd[ImageIFD.GPSTag] = 1
+        gpsIs = true
+        gpsIfd = exifDict.GPS
+    } else if (
+        Object.keys(zerothIfd).indexOf(ImageIFD.GPSTag.toString()) > -1
+    ) {
+        delete zerothIfd[ImageIFD.GPSTag]
     }
 
-    if (('1st' in exif_dict) &&
-        ('thumbnail' in exif_dict) &&
-        (exif_dict.thumbnail != null)) {
-        first_is = true
-        exif_dict['1st'][513] = 1
-        exif_dict['1st'][514] = 1
-        first_ifd = exif_dict['1st']
+    if (('1st' in exifDict) &&
+        ('thumbnail' in exifDict) &&
+        (exifDict.thumbnail != null)) {
+        firstIs = true
+        exifDict['1st'][513] = 1
+        exifDict['1st'][514] = 1
+        firstIfd = exifDict['1st']
     }
 
-    const zeroth_set = _dict_to_bytes(zeroth_ifd, '0th', 0)
-    const zeroth_length = (zeroth_set[0].length + Number(exif_is) * 12 + Number(gps_is) * 12 + 4 +
-        zeroth_set[1].length)
+    const zerothSet = _dictToBytes(zerothIfd, '0th', 0)
+    const zerothLength = (
+        zerothSet[0].length + Number(exifIs) * 12 + Number(gpsIs) * 12 + 4 +
+        zerothSet[1].length
+    )
 
-    let exif_set:string[] = []
-    let exif_bytes = ''
-    let exif_length = 0
-    let gps_set:string[] = []
-    let gps_bytes = ''
-    let gps_length = 0
-    let interop_set:string[] = []
-    let interop_bytes = ''
-    let interop_length = 0
-    let first_set:string[] = []
-    let first_bytes = ''
-    let thumbnail:string = ''
-    if (exif_is) {
-        exif_set = _dict_to_bytes(exif_ifd, 'Exif', zeroth_length)
-        exif_length = exif_set[0].length + Number(interop_is) * 12 + exif_set[1].length
+    let exifSet:Uint8Array[] = []
+    let exifBytes:Uint8Array = new Uint8Array(0)
+    let exifLength:number = 0
+    let gpsSet:Uint8Array[] = []
+    let gpsBytes:Uint8Array = new Uint8Array(0)
+    let gpsLength:number = 0
+    let interopSet:Uint8Array[] = []
+    let interopBytes:Uint8Array = new Uint8Array(0)
+    let interopLength:number = 0
+    let firstSet:Uint8Array[] = []
+    let firstBytes:Uint8Array = new Uint8Array(0)
+    let thumbnail:Uint8Array = new Uint8Array(0)
+
+    if (exifIs) {
+        exifSet = _dictToBytes(exifIfd, 'Exif', zerothLength)
+        exifLength = (exifSet[0].length + Number(interopIs) * 12 +
+            exifSet[1].length)
     }
-    if (gps_is) {
-        gps_set = _dict_to_bytes(gps_ifd, 'GPS', zeroth_length + exif_length)
-        gps_bytes = gps_set.join('')
-        gps_length = gps_bytes.length
+    if (gpsIs) {
+        gpsSet = _dictToBytes(gpsIfd, 'GPS', zerothLength + exifLength)
+        gpsBytes = concat(gpsSet[0], gpsSet[1])
+        gpsLength = gpsBytes.length
     }
-    if (interop_is) {
-        var offset = zeroth_length + exif_length + gps_length
-        interop_set = _dict_to_bytes(interop_ifd, 'Interop', offset)
-        interop_bytes = interop_set.join('')
-        interop_length = interop_bytes.length
+    if (interopIs) {
+        const offset = zerothLength + exifLength + gpsLength
+        interopSet = _dictToBytes(interopIfd, 'Interop', offset)
+        interopBytes = concat(interopSet[0], interopSet[1])
+        interopLength = interopBytes.length
     }
-    if (first_is) {
-        var offset = zeroth_length + exif_length + gps_length + interop_length
-        first_set = _dict_to_bytes(first_ifd, '1st', offset)
-        thumbnail = _get_thumbnail(exif_dict.thumbnail)
+    if (firstIs) {
+        const offset = zerothLength + exifLength + gpsLength + interopLength
+        firstSet = _dictToBytes(firstIfd, '1st', offset)
+        thumbnail = _getThumbnail(exifDict.thumbnail)
         if (thumbnail.length > 64000) {
             throw new Error('Given thumbnail is too large. max 64kB')
         }
     }
 
-    let exif_pointer = ''
-    let gps_pointer = ''
-    let interop_pointer = ''
-    let first_ifd_pointer = '\x00\x00\x00\x00'
-    if (exif_is) {
-        var pointer_value = TIFF_HEADER_LENGTH + zeroth_length
-        var pointer_str = pack('>L', [pointer_value])
-        var key = 34665
-        var key_str = pack('>H', [key])
-        var type_str = pack('>H', [TYPES.Long])
-        var length_str = pack('>L', [1])
-        exif_pointer = key_str + type_str + length_str + pointer_str
+    let exifPointer:Uint8Array = new Uint8Array(0)
+    let gpsPointer:Uint8Array = new Uint8Array(0)
+    let interopPointer:Uint8Array = new Uint8Array(0)
+    let firstIfdPointer = repeat(0, 4)
+
+    if (exifIs) {
+        const pointerValue = TIFF_HEADER_LENGTH + zerothLength
+        const pointerBytes = pack('>L', [pointerValue])
+        const key = 34665
+        const keyBytes = pack('>H', [key])
+        const typeBytes = pack('>H', [TYPES.Long])
+        const lengthBytes = pack('>L', [1])
+        exifPointer = concat(keyBytes, typeBytes, lengthBytes, pointerBytes)
     }
-    if (gps_is) {
-        var pointer_value = TIFF_HEADER_LENGTH + zeroth_length + exif_length
-        var pointer_str = pack('>L', [pointer_value])
-        var key = 34853
-        var key_str = pack('>H', [key])
-        var type_str = pack('>H', [TYPES.Long])
-        var length_str = pack('>L', [1])
-        gps_pointer = key_str + type_str + length_str + pointer_str
+    if (gpsIs) {
+        const pointerValue = TIFF_HEADER_LENGTH + zerothLength + exifLength
+        const pointerBytes = pack('>L', [pointerValue])
+        const key = 34853
+        const keyBytes = pack('>H', [key])
+        const typeBytes = pack('>H', [TYPES.Long])
+        const lengthBytes = pack('>L', [1])
+        gpsPointer = concat(keyBytes, typeBytes, lengthBytes, pointerBytes)
     }
-    if (interop_is) {
-        var pointer_value = (TIFF_HEADER_LENGTH +
-            zeroth_length + exif_length + gps_length)
-        var pointer_str = pack('>L', [pointer_value])
-        var key = 40965
-        var key_str = pack('>H', [key])
-        var type_str = pack('>H', [TYPES.Long])
-        var length_str = pack('>L', [1])
-        interop_pointer = key_str + type_str + length_str + pointer_str
+    if (interopIs) {
+        const pointerValue = (TIFF_HEADER_LENGTH +
+            zerothLength + exifLength + gpsLength)
+        const pointerBytes = pack('>L', [pointerValue])
+        const key = 40965
+        const keyBytes = pack('>H', [key])
+        const typeBytes = pack('>H', [TYPES.Long])
+        const lengthBytes = pack('>L', [1])
+        interopPointer = concat(keyBytes, typeBytes, lengthBytes, pointerBytes)
     }
-    if (first_is) {
-        var pointer_value = (TIFF_HEADER_LENGTH + zeroth_length +
-            exif_length + gps_length + interop_length)
-        first_ifd_pointer = pack('>L', [pointer_value])
-        const thumbnail_pointer = (pointer_value + first_set[0].length + 24 +
-            4 + first_set[1].length)
-        const thumbnail_p_bytes = ('\x02\x01\x00\x04\x00\x00\x00\x01' +
-            pack('>L', [thumbnail_pointer]))
-        const thumbnail_length_bytes = ('\x02\x02\x00\x04\x00\x00\x00\x01' +
-            pack('>L', [thumbnail.length]))
-        first_bytes = (first_set[0] + thumbnail_p_bytes +
-            thumbnail_length_bytes + '\x00\x00\x00\x00' +
-            first_set[1] + thumbnail)
+    if (firstIs) {
+        const pointerValue = (TIFF_HEADER_LENGTH + zerothLength +
+            exifLength + gpsLength + interopLength)
+        firstIfdPointer = pack('>L', [pointerValue])
+        const thumbnailPointer = (pointerValue + firstSet[0].length + 24 +
+            4 + firstSet[1].length)
+        const thumbnailPBytes = concat(
+            stringToBytes('\x02\x01\x00\x04\x00\x00\x00\x01'),
+            pack('>L', [thumbnailPointer])
+        )
+        const thumbnailLengthBytes = concat(
+            stringToBytes('\x02\x02\x00\x04\x00\x00\x00\x01'),
+            pack('>L', [thumbnail.length])
+        )
+        firstBytes = concat(
+            firstSet[0],
+            thumbnailPBytes,
+            thumbnailLengthBytes,
+            repeat(0, 4),
+            firstSet[1],
+            thumbnail
+        )
     }
 
-    const zeroth_bytes = (zeroth_set[0] + exif_pointer + gps_pointer +
-        first_ifd_pointer + zeroth_set[1])
-    if (exif_is) {
-        exif_bytes = exif_set[0] + interop_pointer + exif_set[1]
+    const zerothBytes = concat(
+        zerothSet[0],
+        exifPointer,
+        gpsPointer,
+        firstIfdPointer,
+        zerothSet[1]
+    )
+    if (exifIs) {
+        exifBytes = concat(exifSet[0], interopPointer, exifSet[1])
     }
 
-    return (header + zeroth_bytes + exif_bytes + gps_bytes +
-        interop_bytes + first_bytes)
+    const result = concat(
+        header,
+        zerothBytes,
+        exifBytes,
+        gpsBytes,
+        interopBytes,
+        firstBytes
+    )
+
+    return result
 }
 
 function copy (obj:any):any {
-    return JSON.parse(JSON.stringify(obj))
+    // Deep copy, preserving Uint8Arrays
+    if (obj === null || obj === undefined) return obj
+    if (obj instanceof Uint8Array) {
+        return new Uint8Array(obj)
+    }
+    if (Array.isArray(obj)) {
+        return obj.map(copy)
+    }
+    if (typeof obj === 'object') {
+        const copied:any = {}
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                copied[key] = copy(obj[key])
+            }
+        }
+        return copied
+    }
+    return obj
 }
 
-function _get_thumbnail (jpeg:string):string {
+function _getThumbnail (jpeg:Uint8Array):Uint8Array {
     let segments = splitIntoSegments(jpeg)
-    while ((segments[1].slice(0, 2) >= '\xff\xe0') && (segments[1].slice(0, 2) <= '\xff\xef')) {
+    while (segments[1] && segments[1][0] === 0xff &&
+        segments[1][1] >= 0xe0 && segments[1][1] <= 0xef) {
         segments = [segments[0]].concat(segments.slice(2))
     }
-    return segments.join('')
+    return concat(...segments)
 }
 
-function _pack_byte (array:number[]):string {
-    return pack('>' + nStr('B', array.length), array)
+function _packByte (array:number[]):Uint8Array {
+    return pack('>' + 'B'.repeat(array.length), array)
 }
 
-function _pack_short (array:number[]):string {
-    return pack('>' + nStr('H', array.length), array)
+function _packShort (array:number[]):Uint8Array {
+    return pack('>' + 'H'.repeat(array.length), array)
 }
 
-function _pack_long (array:number[]):string {
-    return pack('>' + nStr('L', array.length), array)
+function _packLong (array:number[]):Uint8Array {
+    return pack('>' + 'L'.repeat(array.length), array)
 }
 
-function _value_to_bytes (
-    raw_value:any,
-    value_type:string,
+function _valueToBytes (
+    rawValue:any,
+    valueType:string,
     offset:number
-):string[] {
-    let four_bytes_over = ''
-    let value_str = ''
-    let length,
-        new_value,
-        num,
-        den
+):Uint8Array[] {
+    let fourBytesOver:Uint8Array = new Uint8Array(0)
+    let valueBytes:Uint8Array = new Uint8Array(0)
+    let length:number
+    let newValue:Uint8Array
+    let num:number
+    let den:number
 
-    if (value_type == 'Byte') {
-        length = raw_value.length
+    if (valueType === 'Byte') {
+        length = rawValue.length
         if (length <= 4) {
-            value_str = (_pack_byte(raw_value) +
-                nStr('\x00', 4 - length))
+            valueBytes = concat(
+                _packByte(rawValue),
+                repeat(0, 4 - length)
+            )
         } else {
-            value_str = pack('>L', [offset])
-            four_bytes_over = _pack_byte(raw_value)
+            valueBytes = pack('>L', [offset])
+            fourBytesOver = _packByte(rawValue)
         }
-    } else if (value_type == 'Short') {
-        length = raw_value.length
+    } else if (valueType === 'Short') {
+        length = rawValue.length
         if (length <= 2) {
-            value_str = (_pack_short(raw_value) +
-                nStr('\x00\x00', 2 - length))
+            valueBytes = concat(
+                _packShort(rawValue),
+                repeat(0, 2 * (2 - length))
+            )
         } else {
-            value_str = pack('>L', [offset])
-            four_bytes_over = _pack_short(raw_value)
+            valueBytes = pack('>L', [offset])
+            fourBytesOver = _packShort(rawValue)
         }
-    } else if (value_type == 'Long') {
-        length = raw_value.length
+    } else if (valueType === 'Long') {
+        length = rawValue.length
         if (length <= 1) {
-            value_str = _pack_long(raw_value)
+            valueBytes = _packLong(rawValue)
         } else {
-            value_str = pack('>L', [offset])
-            four_bytes_over = _pack_long(raw_value)
+            valueBytes = pack('>L', [offset])
+            fourBytesOver = _packLong(rawValue)
         }
-    } else if (value_type == 'Ascii') {
-        new_value = raw_value + '\x00'
-        length = new_value.length
+    } else if (valueType === 'Ascii') {
+        // Handle both string and array
+        // (for fields like UserComment that might be stored as Undefined)
+        let strValue:string
+        if (Array.isArray(rawValue)) {
+            // Convert array to string (null bytes will be preserved)
+            strValue = bytesToString(new Uint8Array(rawValue)) + '\x00'
+        } else {
+            strValue = rawValue + '\x00'
+        }
+        newValue = stringToBytes(strValue)
+        length = newValue.length
         if (length > 4) {
-            value_str = pack('>L', [offset])
-            four_bytes_over = new_value
+            valueBytes = pack('>L', [offset])
+            fourBytesOver = newValue
         } else {
-            value_str = new_value + nStr('\x00', 4 - length)
+            valueBytes = concat(newValue, repeat(0, 4 - length))
         }
-    } else if (value_type == 'Rational') {
-        if (typeof (raw_value[0]) === 'number') {
+    } else if (valueType === 'Rational') {
+        if (typeof (rawValue[0]) === 'number') {
             length = 1
-            num = raw_value[0]
-            den = raw_value[1]
-            new_value = pack('>L', [num]) + pack('>L', [den])
+            num = rawValue[0]
+            den = rawValue[1]
+            newValue = concat(pack('>L', [num]), pack('>L', [den]))
         } else {
-            length = raw_value.length
-            new_value = ''
-            for (var n = 0; n < length; n++) {
-                num = raw_value[n][0]
-                den = raw_value[n][1]
-                new_value += (pack('>L', [num]) +
-                    pack('>L', [den]))
+            length = rawValue.length
+            const parts:Uint8Array[] = []
+            for (let n = 0; n < length; n++) {
+                num = rawValue[n][0]
+                den = rawValue[n][1]
+                parts.push(pack('>L', [num]))
+                parts.push(pack('>L', [den]))
             }
+            newValue = concat(...parts)
         }
-        value_str = pack('>L', [offset])
-        four_bytes_over = new_value
-    } else if (value_type == 'SRational') {
-        if (typeof (raw_value[0]) === 'number') {
+        valueBytes = pack('>L', [offset])
+        fourBytesOver = newValue
+    } else if (valueType === 'SRational') {
+        if (typeof (rawValue[0]) === 'number') {
             length = 1
-            num = raw_value[0]
-            den = raw_value[1]
-            new_value = pack('>l', [num]) + pack('>l', [den])
+            num = rawValue[0]
+            den = rawValue[1]
+            newValue = concat(pack('>l', [num]), pack('>l', [den]))
         } else {
-            length = raw_value.length
-            new_value = ''
-            for (var n = 0; n < length; n++) {
-                num = raw_value[n][0]
-                den = raw_value[n][1]
-                new_value += (pack('>l', [num]) +
-                    pack('>l', [den]))
+            length = rawValue.length
+            const parts:Uint8Array[] = []
+            for (let n = 0; n < length; n++) {
+                num = rawValue[n][0]
+                den = rawValue[n][1]
+                parts.push(pack('>l', [num]))
+                parts.push(pack('>l', [den]))
             }
+            newValue = concat(...parts)
         }
-        value_str = pack('>L', [offset])
-        four_bytes_over = new_value
-    } else if (value_type == 'Undefined') {
-        length = raw_value.length
+        valueBytes = pack('>L', [offset])
+        fourBytesOver = newValue
+    } else if (valueType === 'Undefined') {
+        // Convert array to Uint8Array if needed
+        const bytes = Array.isArray(rawValue) ?
+            new Uint8Array(rawValue) :
+            rawValue
+
+        length = bytes.length
+
         if (length > 4) {
-            value_str = pack('>L', [offset])
-            four_bytes_over = raw_value
+            valueBytes = pack('>L', [offset])
+            fourBytesOver = bytes
         } else {
-            value_str = raw_value + nStr('\x00', 4 - length)
+            valueBytes = concat(bytes, repeat(0, 4 - length))
         }
+    } else {
+        throw new Error(`Unknown value type: ${valueType}`)
     }
 
-    const length_str = pack('>L', [length])
+    const lengthBytes = pack('>L', [length])
 
-    return [length_str, value_str, four_bytes_over]
+    return [lengthBytes, valueBytes, fourBytesOver]
 }
 
-function _dict_to_bytes (ifd_dict:IExifElement, ifd:string, ifd_offset:number):string[] {
+function _dictToBytes (
+    ifdDict:IExifElement,
+    ifd:string,
+    ifdOffset:number
+):Uint8Array[] {
     const TIFF_HEADER_LENGTH = 8
-    const tag_count = Object.keys(ifd_dict).length
-    const entry_header = pack('>H', [tag_count])
-    let entries_length
+    const tagCount = Object.keys(ifdDict).length
+    const entryHeader = pack('>H', [tagCount])
+    let entriesLength:number
     if (['0th', '1st'].indexOf(ifd) > -1) {
-        entries_length = 2 + tag_count * 12 + 4
+        entriesLength = 2 + tagCount * 12 + 4
     } else {
-        entries_length = 2 + tag_count * 12
+        entriesLength = 2 + tagCount * 12
     }
-    let entries = ''
-    let values = ''
+    const entryParts:Uint8Array[] = []
+    const valueParts:Uint8Array[] = []
 
-    for (var keyStr in ifd_dict) {
+    for (const keyStr in ifdDict) {
         const key = parseInt(keyStr)
-        if ((ifd == '0th') && ([34665, 34853].indexOf(key) > -1)) {
+        if ((ifd === '0th') && ([34665, 34853].indexOf(key) > -1)) {
             continue
-        } else if ((ifd == 'Exif') && (key == 40965)) {
+        } else if ((ifd === 'Exif') && (key === 40965)) {
             continue
-        } else if ((ifd == '1st') && ([513, 514].indexOf(key) > -1)) {
+        } else if ((ifd === '1st') && ([513, 514].indexOf(key) > -1)) {
             continue
         }
 
-        let raw_value = ifd_dict[key]
-        const key_str = pack('>H', [key])
-        const value_type = TAGS[ifd][key].type
-        const type_str = pack('>H', [TYPES[value_type]])
+        let rawValue = ifdDict[key]
+        const keyBytes = pack('>H', [key])
+        const valueType = TAGS[ifd][key].type
+        const typeBytes = pack('>H', [TYPES[valueType]])
 
-        if (typeof (raw_value) === 'number') {
-            raw_value = [raw_value]
+        if (typeof (rawValue) === 'number') {
+            rawValue = [rawValue]
         }
-        const offset = TIFF_HEADER_LENGTH + entries_length + ifd_offset + values.length
-        const b = _value_to_bytes(raw_value, value_type, offset)
-        const length_str = b[0]
-        const value_str = b[1]
-        const four_bytes_over = b[2]
+        const offset = TIFF_HEADER_LENGTH + entriesLength + ifdOffset +
+            (valueParts.reduce((sum, p) => sum + p.length, 0))
+        const b = _valueToBytes(rawValue, valueType, offset)
+        const lengthBytes = b[0]
+        const valueBytes = b[1]
+        const fourBytesOver = b[2]
 
-        entries += key_str + type_str + length_str + value_str
-        values += four_bytes_over
+        entryParts.push(keyBytes, typeBytes, lengthBytes, valueBytes)
+        if (fourBytesOver.length > 0) {
+            valueParts.push(fourBytesOver)
+        }
     }
 
-    return [entry_header + entries, values]
+    return [concat(entryHeader, ...entryParts), concat(...valueParts)]
 }
 
 class ExifReader {
-    tiftag:string|null
-    endian_mark:string
+    tiftag:Uint8Array | null
+    endianMark:string
 
-    constructor (data:string) {
-        this.endian_mark = ''
-        let segments,
-            app1
-        if (data.slice(0, 2) == '\xff\xd8') { // JPEG
+    constructor (data:Uint8Array) {
+        this.endianMark = ''
+        let segments:Uint8Array[]
+        let app1:Uint8Array | null
+
+        if (equals(data, JPEG_MARKER, 0, 0, 2)) { // JPEG
             segments = splitIntoSegments(data)
             app1 = getExifSeg(segments)
             if (app1) {
-                this.tiftag = app1.slice(10)
+                this.tiftag = app1.subarray(10)
             } else {
                 this.tiftag = null
             }
-        } else if (['\x49\x49', '\x4d\x4d'].indexOf(data.slice(0, 2)) > -1) { // TIFF
+        } else if (
+            equals(data, TIFF_HEADER_II, 0, 0, 2) ||
+            equals(data, TIFF_HEADER_MM, 0, 0, 2)
+        ) { // TIFF
             this.tiftag = data
-        } else if (data.slice(0, 4) == 'Exif') { // Exif
-            this.tiftag = data.slice(6)
         } else {
             throw new Error('Given file is neither JPEG nor TIFF.')
         }
     }
 
-    get_ifd (pointer:number, ifd_name:string):IExifElement {
-        const ifd_dict:IExifElement = {}
-        const tag_count = unpack(this.endian_mark + 'H',
-            this.tiftag!.slice(pointer, pointer + 2))[0]
+    getIfd (pointer:number, ifdName:string):IExifElement {
+        const ifdDict:IExifElement = {}
+        const tagCount = unpack(this.endianMark + 'H',
+            this.tiftag!.subarray(pointer, pointer + 2))[0]
         const offset = pointer + 2
-        let t
-        if (['0th', '1st'].indexOf(ifd_name) > -1) {
+        let t:string
+        if (['0th', '1st'].indexOf(ifdName) > -1) {
             t = 'Image'
         } else {
-            t = ifd_name
+            t = ifdName
         }
 
-        for (let x = 0; x < tag_count; x++) {
+        for (let x = 0; x < tagCount; x++) {
             pointer = offset + 12 * x
-            const tag = unpack(this.endian_mark + 'H',
-                this.tiftag!.slice(pointer, pointer + 2))[0]
-            const value_type = unpack(this.endian_mark + 'H',
-                this.tiftag!.slice(pointer + 2, pointer + 4))[0]
-            const value_num = unpack(this.endian_mark + 'L',
-                this.tiftag!.slice(pointer + 4, pointer + 8))[0]
-            const value = this.tiftag!.slice(pointer + 8, pointer + 12)
+            const tag = unpack(this.endianMark + 'H',
+                this.tiftag!.subarray(pointer, pointer + 2))[0]
+            const valueType = unpack(this.endianMark + 'H',
+                this.tiftag!.subarray(pointer + 2, pointer + 4))[0]
+            const valueNum = unpack(this.endianMark + 'L',
+                this.tiftag!.subarray(pointer + 4, pointer + 8))[0]
+            const value = this.tiftag!.subarray(pointer + 8, pointer + 12)
 
-            const v_set = [value_type, value_num, value]
+            const vSet = [valueType, valueNum, value]
             if (tag in TAGS[t]) {
-                ifd_dict[tag] = this.convert_value(v_set)
+                ifdDict[tag] = this.convertValue(vSet, tag, t)
             }
         }
 
-        if (ifd_name == '0th') {
-            pointer = offset + 12 * tag_count
-            ifd_dict.first_ifd_pointer = this.tiftag!.slice(pointer, pointer + 4)
+        if (ifdName === '0th') {
+            pointer = offset + 12 * tagCount
+            ifdDict.first_ifd_pointer =
+                this.tiftag!.subarray(pointer, pointer + 4)
         }
 
-        return ifd_dict
+        return ifdDict
     }
 
-    convert_value (val:any):any {
-        let data = null
+    convertValue (val:any, tag:number, ifdType:string):any {
+        let data:any = null
         const t = val[0]
         const length = val[1]
-        const value = val[2]
-        let pointer
+        const value:Uint8Array = val[2]
+        let pointer:number
 
-        if (t == 1) { // BYTE
+        if (t === 1) { // BYTE
             if (length > 4) {
-                pointer = unpack(this.endian_mark + 'L', value)[0]
-                data = unpack(this.endian_mark + nStr('B', length),
-                    this.tiftag!.slice(pointer, pointer + length))
+                pointer = unpack(this.endianMark + 'L', value)[0]
+                data = unpack(this.endianMark + 'B'.repeat(length),
+                    this.tiftag!.subarray(pointer, pointer + length))
             } else {
-                data = unpack(this.endian_mark + nStr('B', length), value.slice(0, length))
+                data = unpack(
+                    this.endianMark + 'B'.repeat(length),
+                    value.subarray(0, length)
+                )
             }
-        } else if (t == 2) { // ASCII
+        } else if (t === 2) { // ASCII
             if (length > 4) {
-                pointer = unpack(this.endian_mark + 'L', value)[0]
-                data = this.tiftag!.slice(pointer, pointer + length - 1)
+                pointer = unpack(this.endianMark + 'L', value)[0]
+                data = bytesToString(
+                    this.tiftag!.subarray(pointer, pointer + length - 1)
+                )
             } else {
-                data = value.slice(0, length - 1)
+                data = bytesToString(value.subarray(0, length - 1))
             }
-        } else if (t == 3) { // SHORT
+        } else if (t === 3) { // SHORT
             if (length > 2) {
-                pointer = unpack(this.endian_mark + 'L', value)[0]
-                data = unpack(this.endian_mark + nStr('H', length),
-                    this.tiftag!.slice(pointer, pointer + length * 2))
+                pointer = unpack(this.endianMark + 'L', value)[0]
+                data = unpack(this.endianMark + 'H'.repeat(length),
+                    this.tiftag!.subarray(pointer, pointer + length * 2))
             } else {
-                data = unpack(this.endian_mark + nStr('H', length),
-                    value.slice(0, length * 2))
+                data = unpack(this.endianMark + 'H'.repeat(length),
+                    value.subarray(0, length * 2))
             }
-        } else if (t == 4) { // LONG
+        } else if (t === 4) { // LONG
             if (length > 1) {
-                pointer = unpack(this.endian_mark + 'L', value)[0]
-                data = unpack(this.endian_mark + nStr('L', length),
-                    this.tiftag!.slice(pointer, pointer + length * 4))
+                pointer = unpack(this.endianMark + 'L', value)[0]
+                data = unpack(this.endianMark + 'L'.repeat(length),
+                    this.tiftag!.subarray(pointer, pointer + length * 4))
             } else {
-                data = unpack(this.endian_mark + nStr('L', length),
-                    value)
+                data = unpack(this.endianMark + 'L'.repeat(length), value)
             }
-        } else if (t == 5) { // RATIONAL
-            pointer = unpack(this.endian_mark + 'L', value)[0]
+        } else if (t === 5) { // RATIONAL
+            pointer = unpack(this.endianMark + 'L', value)[0]
             if (length > 1) {
                 data = []
-                for (var x = 0; x < length; x++) {
-                    data.push([unpack(this.endian_mark + 'L',
-                        this.tiftag!.slice(pointer + x * 8, pointer + 4 + x * 8))[0],
-                    unpack(this.endian_mark + 'L',
-                        this.tiftag!.slice(pointer + 4 + x * 8, pointer + 8 + x * 8))[0]
+                for (let x = 0; x < length; x++) {
+                    data.push([unpack(this.endianMark + 'L',
+                        this.tiftag!.subarray(
+                            pointer + x * 8,
+                            pointer + 4 + x * 8
+                        ))[0],
+                    unpack(this.endianMark + 'L',
+                        this.tiftag!.subarray(
+                            pointer + 4 + x * 8,
+                            pointer + 8 + x * 8
+                        ))[0]
                     ])
                 }
             } else {
-                data = [unpack(this.endian_mark + 'L',
-                    this.tiftag!.slice(pointer, pointer + 4))[0],
-                unpack(this.endian_mark + 'L',
-                    this.tiftag!.slice(pointer + 4, pointer + 8))[0]
+                data = [unpack(this.endianMark + 'L',
+                    this.tiftag!.subarray(pointer, pointer + 4))[0],
+                unpack(this.endianMark + 'L',
+                    this.tiftag!.subarray(pointer + 4, pointer + 8))[0]
                 ]
             }
-        } else if (t == 7) { // UNDEFINED BYTES
-            if (length > 4) {
-                pointer = unpack(this.endian_mark + 'L', value)[0]
-                data = this.tiftag!.slice(pointer, pointer + length)
+        } else if (t === 7) { // UNDEFINED BYTES
+            // Special handling for UserComment if it's Undefined
+            // but should be Ascii
+            if (tag === 37510 && ifdType === 'Exif') {
+                if (length > 4) {
+                    pointer = unpack(this.endianMark + 'L', value)[0]
+                    data = bytesToString(
+                        this.tiftag!.subarray(pointer, pointer + length - 1)
+                    )
+                } else {
+                    data = bytesToString(value.subarray(0, length - 1))
+                }
             } else {
-                data = value.slice(0, length)
+                if (length > 4) {
+                    pointer = unpack(this.endianMark + 'L', value)[0]
+                    const bytes = this.tiftag!.subarray(
+                        pointer,
+                        pointer + length
+                    )
+                    data = Array.from(bytes)  // return array of numbers
+                } else {
+                    const bytes = value.subarray(0, length)
+                    data = Array.from(bytes)  // return array of numbers
+                }
             }
-        } else if (t == 9) { // SLONG
+        } else if (t === 9) { // SLONG
             if (length > 1) {
-                pointer = unpack(this.endian_mark + 'L', value)[0]
-                data = unpack(this.endian_mark + nStr('l', length),
-                    this.tiftag!.slice(pointer, pointer + length * 4))
+                pointer = unpack(this.endianMark + 'L', value)[0]
+                data = unpack(this.endianMark + 'l'.repeat(length),
+                    this.tiftag!.subarray(pointer, pointer + length * 4))
             } else {
-                data = unpack(this.endian_mark + nStr('l', length),
-                    value)
+                data = unpack(this.endianMark + 'l'.repeat(length), value)
             }
-        } else if (t == 10) { // SRATIONAL
-            pointer = unpack(this.endian_mark + 'L', value)[0]
+        } else if (t === 10) { // SRATIONAL
+            pointer = unpack(this.endianMark + 'L', value)[0]
             if (length > 1) {
                 data = []
-                for (var x = 0; x < length; x++) {
-                    data.push([unpack(this.endian_mark + 'l',
-                        this.tiftag!.slice(pointer + x * 8, pointer + 4 + x * 8))[0],
-                    unpack(this.endian_mark + 'l',
-                        this.tiftag!.slice(pointer + 4 + x * 8, pointer + 8 + x * 8))[0]
+                for (let x = 0; x < length; x++) {
+                    data.push([unpack(this.endianMark + 'l',
+                        this.tiftag!
+                            .subarray(pointer + x * 8, pointer + 4 + x * 8))[0],
+                    unpack(this.endianMark + 'l',
+                        this.tiftag!.subarray(
+                            pointer + 4 + x * 8, pointer + 8 + x * 8
+                        ))[0]
                     ])
                 }
             } else {
-                data = [unpack(this.endian_mark + 'l',
-                    this.tiftag!.slice(pointer, pointer + 4))[0],
-                unpack(this.endian_mark + 'l',
-                    this.tiftag!.slice(pointer + 4, pointer + 8))[0]
+                data = [unpack(this.endianMark + 'l',
+                    this.tiftag!.subarray(pointer, pointer + 4))[0],
+                unpack(this.endianMark + 'l',
+                    this.tiftag!.subarray(pointer + 4, pointer + 8))[0]
                 ]
             }
         } else {
@@ -607,7 +724,7 @@ class ExifReader {
                 'type to decode. type:' + t)
         }
 
-        if ((data instanceof Array) && (data.length == 1)) {
+        if ((data instanceof Array) && (data.length === 1)) {
             return data[0]
         } else {
             return data
@@ -615,100 +732,21 @@ class ExifReader {
     }
 }
 
-function pack (mark:string, array:number[]):string {
-    if (!(array instanceof Array)) {
-        throw new Error("'pack' error. Got invalid type argument.")
-    }
-    if ((mark.length - 1) != array.length) {
-        throw new Error("'pack' error. " + (mark.length - 1) + ' marks, ' + array.length + ' elements.')
-    }
-
-    let littleEndian
-    if (mark[0] == '<') {
-        littleEndian = true
-    } else if (mark[0] == '>') {
-        littleEndian = false
-    } else {
-        throw new Error('')
-    }
-    let packed = ''
-    let p = 1
-    let val = null
-    let c = null
-    let valStr = null
-
-    while (c = mark[p]) {
-        if (c.toLowerCase() == 'b') {
-            val = array[p - 1]
-            if ((c == 'b') && (val < 0)) {
-                val += 0x100
-            }
-            if ((val > 0xff) || (val < 0)) {
-                throw new Error("'pack' error.")
-            } else {
-                valStr = String.fromCharCode(val)
-            }
-        } else if (c == 'H') {
-            val = array[p - 1]
-            if ((val > 0xffff) || (val < 0)) {
-                throw new Error("'pack' error.")
-            } else {
-                valStr = String.fromCharCode(Math.floor((val % 0x10000) / 0x100)) +
-                    String.fromCharCode(val % 0x100)
-                if (littleEndian) {
-                    valStr = valStr.split('').reverse().join('')
-                }
-            }
-        } else if (c.toLowerCase() == 'l') {
-            val = array[p - 1]
-            if ((c == 'l') && (val < 0)) {
-                val += 0x100000000
-            }
-            if ((val > 0xffffffff) || (val < 0)) {
-                throw new Error("'pack' error.")
-            } else {
-                valStr = String.fromCharCode(Math.floor(val / 0x1000000)) +
-                    String.fromCharCode(Math.floor((val % 0x1000000) / 0x10000)) +
-                    String.fromCharCode(Math.floor((val % 0x10000) / 0x100)) +
-                    String.fromCharCode(val % 0x100)
-                if (littleEndian) {
-                    valStr = valStr.split('').reverse().join('')
-                }
-            }
-        } else {
-            throw new Error("'pack' error.")
-        }
-
-        packed += valStr
-        p += 1
-    }
-
-    return packed
-}
-
-function nStr (ch:string, num:number):string {
-    let str = ''
-    for (let i = 0; i < num; i++) {
-        str += ch
-    }
-    return str
-}
-
-function splitIntoSegments (data:string):string[] {
-    if (data.slice(0, 2) != '\xff\xd8') {
+function splitIntoSegments (data:Uint8Array):Uint8Array[] {
+    if (!equals(data, JPEG_MARKER, 0, 0, 2)) {
         throw new Error("Given data isn't JPEG.")
     }
 
     let head = 2
-    const segments = ['\xff\xd8']
+    const segments:Uint8Array[] = [JPEG_MARKER]
     while (true) {
-        if (data.slice(head, head + 2) == '\xff\xda') {
-            segments.push(data.slice(head))
+        if (equals(data, SOS_MARKER, head, 0, 2)) {
+            segments.push(data.subarray(head))
             break
         } else {
-            const length = unpack('>H', data.slice(head + 2, head + 4))[0]
+            const length = unpack('>H', data.subarray(head + 2, head + 4))[0]
             const endPoint = head + length + 2
-            segments.push(data.slice(head, endPoint))
+            segments.push(data.subarray(head, endPoint))
             head = endPoint
         }
 
@@ -719,26 +757,25 @@ function splitIntoSegments (data:string):string[] {
     return segments
 }
 
-function getExifSeg (segments:string[]):string|null {
-    let seg
+function getExifSeg (segments:Uint8Array[]):Uint8Array | null {
     for (let i = 0; i < segments.length; i++) {
-        seg = segments[i]
-        if (seg.slice(0, 2) == '\xff\xe1' &&
-            seg.slice(4, 10) == 'Exif\x00\x00') {
+        const seg = segments[i]
+        if (equals(seg, EXIF_MARKER, 0, 0, 2) &&
+            equals(seg, EXIF_HEADER, 4, 0, 6)) {
             return seg
         }
     }
     return null
 }
 
-function mergeSegments (segments:string[], exif:string):string {
+function mergeSegments (segments:Uint8Array[], exif:Uint8Array):Uint8Array {
     let hasExifSegment = false
     const additionalAPP1ExifSegments:number[] = []
 
     segments.forEach(function (segment, i) {
         // Replace first occurence of APP1:Exif segment
-        if (segment.slice(0, 2) == '\xff\xe1' &&
-            segment.slice(4, 10) == 'Exif\x00\x00'
+        if (equals(segment, EXIF_MARKER, 0, 0, 2) &&
+            equals(segment, EXIF_HEADER, 4, 0, 6)
         ) {
             if (!hasExifSegment) {
                 segments[i] = exif
@@ -758,7 +795,7 @@ function mergeSegments (segments:string[], exif:string):string {
         segments = [segments[0], exif].concat(segments.slice(1))
     }
 
-    return segments.join('')
+    return concat(...segments)
 }
 
 const TYPES:{ [key:string]:number } = {
@@ -815,81 +852,5 @@ export default {
     GPSHelper
 }
 
-function unpack (mark:string, str:string):number[] {
-    if (typeof (str) !== 'string') {
-        throw new Error("'unpack' error. Got invalid type argument.")
-    }
-
-    let l = 0
-    for (let markPointer = 1; markPointer < mark.length; markPointer++) {
-        if (mark[markPointer].toLowerCase() == 'b') {
-            l += 1
-        } else if (mark[markPointer].toLowerCase() == 'h') {
-            l += 2
-        } else if (mark[markPointer].toLowerCase() == 'l') {
-            l += 4
-        } else {
-            throw new Error("'unpack' error. Got invalid mark.")
-        }
-    }
-
-    if (l != str.length) {
-        throw new Error("'unpack' error. Mismatch between symbol and string length. " + l + ':' + str.length)
-    }
-
-    let littleEndian
-    if (mark[0] == '<') {
-        littleEndian = true
-    } else if (mark[0] == '>') {
-        littleEndian = false
-    } else {
-        throw new Error("'unpack' error.")
-    }
-    const unpacked:number[] = []
-    let strPointer = 0
-    let p = 1
-    let val:number|null = null
-    let c:string|null = null
-    let length:number|null = null
-    let sliced = ''
-
-    while (c = mark[p]) {
-        if (c.toLowerCase() == 'b') {
-            length = 1
-            sliced = str.slice(strPointer, strPointer + length)
-            val = sliced.charCodeAt(0)
-            if ((c == 'b') && (val >= 0x80)) {
-                val -= 0x100
-            }
-        } else if (c == 'H') {
-            length = 2
-            sliced = str.slice(strPointer, strPointer + length)
-            if (littleEndian) {
-                sliced = sliced.split('').reverse().join('')
-            }
-            val = sliced.charCodeAt(0) * 0x100 +
-                sliced.charCodeAt(1)
-        } else if (c.toLowerCase() == 'l') {
-            length = 4
-            sliced = str.slice(strPointer, strPointer + length)
-            if (littleEndian) {
-                sliced = sliced.split('').reverse().join('')
-            }
-            val = sliced.charCodeAt(0) * 0x1000000 +
-                sliced.charCodeAt(1) * 0x10000 +
-                sliced.charCodeAt(2) * 0x100 +
-                sliced.charCodeAt(3)
-            if ((c == 'l') && (val >= 0x80000000)) {
-                val -= 0x100000000
-            }
-        } else {
-            throw new Error("'unpack' error. " + c)
-        }
-
-        unpacked.push(val)
-        strPointer += length
-        p += 1
-    }
-
-    return unpacked
-}
+// Re-export from tags for convenience
+export { ImageIFD, ExifIFD, GPSIFD } from './tags'

@@ -1,35 +1,34 @@
 import { test } from '@substrate-system/tapzero'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import piexif from '../src/index.js'
+import * as exif from '../src/node.js'
 
 // When bundled and piped to node, we need to use process.cwd()
 const testFilesDir = path.join(process.cwd(), 'test', 'files')
 
 test('basic load, dump, and insert', t => {
     const jpeg = fs.readFileSync(path.join(testFilesDir, 'noexif.jpg'))
-    const data = jpeg.toString('binary')
 
-    const zeroth:Record<number, any> = {}
-    const exif:Record<number, any> = {}
-    const gps:Record<number, any> = {}
+    const zeroth: Record<number, any> = {}
+    const exifIfd: Record<number, any> = {}
+    const gps: Record<number, any> = {}
 
-    zeroth[piexif.ImageIFD.Make] = 'Make'
-    zeroth[piexif.ImageIFD.XResolution] = [777, 1]
-    zeroth[piexif.ImageIFD.YResolution] = [777, 1]
-    zeroth[piexif.ImageIFD.Software] = 'Piexifjs'
-    exif[piexif.ExifIFD.DateTimeOriginal] = '2010:10:10 10:10:10'
-    exif[piexif.ExifIFD.LensMake] = 'LensMake'
-    exif[piexif.ExifIFD.Sharpness] = 777
-    exif[piexif.ExifIFD.LensSpecification] = [[1, 1], [1, 1], [1, 1], [1, 1]]
-    gps[piexif.GPSIFD.GPSVersionID] = [7, 7, 7, 7]
-    gps[piexif.GPSIFD.GPSDateStamp] = '1999:99:99 99:99:99'
+    zeroth[exif.ImageIFD.Make] = 'Make'
+    zeroth[exif.ImageIFD.XResolution] = [777, 1]
+    zeroth[exif.ImageIFD.YResolution] = [777, 1]
+    zeroth[exif.ImageIFD.Software] = 'Piexifjs'
+    exifIfd[exif.ExifIFD.DateTimeOriginal] = '2010:10:10 10:10:10'
+    exifIfd[exif.ExifIFD.LensMake] = 'LensMake'
+    exifIfd[exif.ExifIFD.Sharpness] = 777
+    exifIfd[exif.ExifIFD.LensSpecification] = [[1, 1], [1, 1], [1, 1], [1, 1]]
+    gps[exif.GPSIFD.GPSVersionID] = [7, 7, 7, 7]
+    gps[exif.GPSIFD.GPSDateStamp] = '1999:99:99 99:99:99'
 
-    const exifObj = { '0th': zeroth, Exif: exif, GPS: gps }
-    const exifbytes = piexif.dump(exifObj)
+    const exifObj = { '0th': zeroth, Exif: exifIfd, GPS: gps }
+    const exifbytes = exif.dumpToBuffer(exifObj)
 
-    const newData = piexif.insert(exifbytes, data)
-    const exifObj2 = piexif.load(newData)
+    const newData = exif.insertIntoBuffer(exifbytes, jpeg)
+    const exifObj2 = exif.loadFromBuffer(newData)
 
     // Remove auto-generated fields
     if (exifObj2['0th']) {
@@ -49,18 +48,18 @@ test('roundtrip test - load, dump, insert', async t => {
 
     const noexif = fs.readFileSync(
         path.join(testFilesDir, 'noexif.jpg')
-    ).toString('binary')
+    )
 
     let passed = 0
 
     for (const file of files) {
         const filepath = path.join(testFilesDir, file)
-        const jpeg = fs.readFileSync(filepath).toString('binary')
+        const jpeg = fs.readFileSync(filepath)
 
-        const exifObj1 = piexif.load(jpeg)
-        const exifStr = piexif.dump(exifObj1)
-        const newJpeg = piexif.insert(exifStr, noexif)
-        const exifObj2 = piexif.load(newJpeg)
+        const exifObj1 = exif.loadFromBuffer(jpeg)
+        const exifBytes = exif.dumpToBuffer(exifObj1)
+        const newJpeg = exif.insertIntoBuffer(exifBytes, noexif)
+        const exifObj2 = exif.loadFromBuffer(newJpeg)
 
         for (const ifdKey in exifObj1) {
             const ifd = ifdKey as keyof typeof exifObj1
@@ -102,10 +101,10 @@ test('remove test', async t => {
 
     for (const file of files) {
         const filepath = path.join(testFilesDir, file)
-        const jpeg = fs.readFileSync(filepath).toString('binary')
+        const jpeg = fs.readFileSync(filepath)
 
-        const removed = piexif.remove(jpeg)
-        const exifObj = piexif.load(removed)
+        const removed = exif.removeFromBuffer(jpeg)
+        const exifObj = exif.loadFromBuffer(removed)
 
         let keyNum = 0
         if (exifObj.thumbnail != null) {

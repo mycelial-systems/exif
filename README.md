@@ -1,108 +1,157 @@
-# `exif`
+# exif
 
-Read and modify exif data. Library to modify exif in JS
-(both in-browser and Node.js).
-
+Read and modify EXIF data. A robust library to parse and edit EXIF metadata in JavaScript, working seamlessly in both **Browser** and **Node.js** environments.
 
 <details><summary><h2>Contents</h2></summary>
+
 <!-- toc -->
+
+- [Install](#install)
+- [Browser Usage](#browser-usage)
+  * [Reading from a File Input](#reading-from-a-file-input)
+  * [Reading from a URL](#reading-from-a-url)
+- [Node.js Usage](#nodejs-usage)
+  * [Reading and Writing Files](#reading-and-writing-files)
+  * [Working with Buffers](#working-with-buffers)
+- [API](#api)
+  * [Core Functions](#core-functions)
+  * [Helpers](#helpers)
+
+<!-- tocstop -->
+
 </details>
 
-
 ## Install
- 
-```sh
-npm i -S @substrate-system/exit
-```
- 
 
-## Use
+```sh
+npm i -S @substrate-system/exif
+```
+
+## Browser Usage
+
+Import from the browser-specific entry point for helpful utilities like
+`loadFromBlob` and `loadFromUrl`.
 
 ```ts
-import exif from '@substrate-system/exif'
-
-const exifObj = exif.load(jpegData)
-
-const exifString = exif.dump(exifObj)
-
-exif.insert(exifString, jpegData)
+import * as exif from '@substrate-system/exif/browser'
 ```
 
-### `insert`
+### Reading from a File Input
 
-Insert exif into JPEG. If jpegData is DataURL, returns JPEG as DataURL.
-Else if jpegData is binary as string, returns JPEG as binary as string.
+```html
+<input type="file" id="file-input" />
+```
 
 ```js
+import * as exif from '@substrate-system/exif/browser'
+
+const input = document.getElementById('file-input')
+input.addEventListener('change', async (e) => {
+  const file = e.target.files[0]
+  
+  // Load EXIF data directly from the File object
+  const exifData = await exif.loadFromBlob(file)
+  console.log('Camera Make:', exifData['0th'][exif.ImageIFD.Make])
+  
+  // Modify EXIF data
+  exifData['0th'][exif.ImageIFD.Make] = "My Custom Camera"
+  
+  // Create a new Blob with modified EXIF
+  const newBlob = await exif.insertIntoBlob(exif.dumpToBlob(exifData), file)
+  
+  // Create a download link
+  const url = URL.createObjectURL(newBlob)
+  console.log('Modified image URL:', url)
+})
 ```
 
-- :code:`var exifObj = piexif.load(jpegData)` - Get exif data as *object*. *jpegData* must be a *string* that starts with "\data:image/jpeg;base64,"(DataURL), "\\xff\\xd8", or "Exif".
-- :code:`var exifStr = piexif.dump(exifObj)` - Get exif as *string* to insert into JPEG.
-- :code:`piexif.insert(exifStr, jpegData)` - Insert exif into JPEG. If *jpegData* is DataURL, returns JPEG as DataURL. Else if *jpegData* is binary as *string*, returns JPEG as binary as *string*.
-- :code:`piexif.remove(jpegData)` - Remove exif from JPEG. If *jpegData* is DataURL, returns JPEG as DataURL. Else if *jpegData* is binary as *string*, returns JPEG as binary as *string*.
+### Reading from a URL
 
-Use with File API or Canvas API.
+```ts
+import * as exif from '@substrate-system/exif/browser'
 
-Example
--------
+async function logExifFromUrl(url) {
+  const exifData = await exif.loadFromUrl(url)
+  console.log(exifData)
+}
+```
 
-.. code:: html
+## Node.js Usage
 
-    <input type="file" id="files" />
-    <script src="/js/piexif.js" />
-    <script>
-    function handleFileSelect(evt) {
-        var file = evt.target.files[0];
-        
-        var zeroth = {};
-        var exif = {};
-        var gps = {};
-        zeroth[piexif.ImageIFD.Make] = "Make";
-        zeroth[piexif.ImageIFD.XResolution] = [777, 1];
-        zeroth[piexif.ImageIFD.YResolution] = [777, 1];
-        zeroth[piexif.ImageIFD.Software] = "Piexifjs";
-        exif[piexif.ExifIFD.DateTimeOriginal] = "2010:10:10 10:10:10";
-        exif[piexif.ExifIFD.LensMake] = "LensMake";
-        exif[piexif.ExifIFD.Sharpness] = 777;
-        exif[piexif.ExifIFD.LensSpecification] = [[1, 1], [1, 1], [1, 1], [1, 1]];
-        gps[piexif.GPSIFD.GPSVersionID] = [7, 7, 7, 7];
-        gps[piexif.GPSIFD.GPSDateStamp] = "1999:99:99 99:99:99";
-        var exifObj = {"0th":zeroth, "Exif":exif, "GPS":gps};
-        var exifStr = piexif.dump(exifObj);
+Import from the node-specific entry point for filesystem and Buffer helpers.
 
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            var inserted = piexif.insert(exifStr, e.target.result);
+```ts
+import * as exif from '@substrate-system/exif/node'
+```
 
-            var image = new Image();
-            image.src = inserted;
-            image.width = 200;
-            var el = $("<div></div>").append(image);
-            $("#resized").prepend(el);
+### Reading and Writing Files
 
-        };
-        reader.readAsDataURL(file);
-    }
-    
-    document.getElementById('files').addEventListener('change', handleFileSelect, false);
-    </script>
+The `modifyFile` helper makes it easy to read, update, and save in one go.
 
-Dependency
-----------
+```ts
+import * as exif from '@substrate-system/exif/node'
 
-No dependency. Piexifjs just needs standard JavaScript environment.
+const inputPath = './photo.jpg'
+const outputPath = './parsed-photo.jpg'
 
-Environment
------------
+// Read, modify, and save
+exif.modifyFile(inputPath, outputPath, (exifData) => {
+  // Add a UserComment
+  exifData.Exif[exif.ExifIFD.UserComment] = "Edited with @substrate-system/exif"
+  
+  // Update GPS Altitude (Rational type: [numerator, denominator])
+  exifData.GPS[exif.GPSIFD.GPSAltitude] = [100, 1] 
+  
+  return exifData
+})
+```
 
-Both client-side and server-side. Standard browsers(Tested on IE11, Opera28, and PhantomJS) and Node.js.
+### Working with Buffers
 
-Issues
-------
+```ts
+import * as fs from 'node:fs'
+import * as exif from '@substrate-system/exif/node'
 
-Give me details. Environment, code, input, output. I can do nothing with abstract.
+const buffer = fs.readFileSync('./photo.jpg')
 
-License
--------
+// Load from Buffer
+const exifData = exif.loadFromBuffer(buffer)
 
-This software is released under the MIT License, see LICENSE.txt.
+// Dump to Buffer
+const exifBuffer = exif.dumpToBuffer(exifData)
+
+// Insert into original image buffer
+const newImageBuffer = exif.insertIntoBuffer(exifBuffer, buffer)
+```
+
+## API
+
+The library is built around `Uint8Array` for cross-platform compatibility.
+
+### Core Functions
+
+Available in both `browser` and `node` imports.
+
+- **`load(data: Uint8Array): IExif`**  
+  Parse EXIF data from a JPEG binary array.
+
+- **`dump(exifData: IExif): Uint8Array`**  
+  Convert an EXIF object into a binary array ready for insertion.
+
+- **`insert(exifBinary: Uint8Array, jpegData: Uint8Array): Uint8Array`**  
+  Insert an EXIF binary block into a JPEG binary array.
+
+- **`remove(jpegData: Uint8Array): Uint8Array`**  
+  Remove EXIF data from a JPEG binary array.
+
+### Helpers
+
+**Browser (`@substrate-system/exif/browser`)**
+- `loadFromBlob(blob: Blob): Promise<IExif>`
+- `loadFromUrl(url: string): Promise<IExif>`
+- `insertIntoBlob(exifBlob: Blob, jpegBlob: Blob): Promise<Blob>`
+
+**Node.js (`@substrate-system/exif/node`)**
+- `loadFromFile(path: string): IExif`
+- `loadFromBuffer(buffer: Buffer): IExif`
+- `modifyFile(input: string, output: string, callback: (data: IExif) => IExif): void`
