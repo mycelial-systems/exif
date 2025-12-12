@@ -1,12 +1,23 @@
 # exif
 
-Read and modify EXIF data. A robust library to parse and edit EXIF metadata in JavaScript, working seamlessly in both **Browser** and **Node.js** environments.
+[![tests](https://img.shields.io/github/actions/workflow/status/substrate-system/exif/nodejs.yml?style=flat-square)](https://github.com/substrate-system/exif/actions/workflows/nodejs.yml)
+[![types](https://img.shields.io/npm/types/@substrate-system/exif?style=flat-square)](README.md)
+[![module](https://img.shields.io/badge/module-ESM%2FCJS-blue?style=flat-square)](README.md)
+[![semantic versioning](https://img.shields.io/badge/semver-2.0.0-blue?logo=semver&style=flat-square)](https://semver.org/)
+[![Common Changelog](https://nichoth.github.io/badge/common-changelog.svg)](./CHANGELOG.md)
+[![install size](https://flat.badgen.net/packagephobia/install/@substrate-system/exif)](https://packagephobia.com/result?p=@substrate-system/exif)
+[![gzip size](https://flat.badgen.net/bundlephobia/minzip/@substrate-system/exif)](https://bundlephobia.com/package/@substrate-system/exif)
+[![dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg?style=flat-square)](package.json)
+[![license](https://img.shields.io/badge/license-Big_Time-blue?style=flat-square)](LICENSE)
+
+Read and modify EXIF data in Browsers and Node.
 
 <details><summary><h2>Contents</h2></summary>
 
 <!-- toc -->
 
 - [Install](#install)
+- [Import Patterns](#import-patterns)
 - [Browser Usage](#browser-usage)
   * [Reading from a File Input](#reading-from-a-file-input)
   * [Reading from a URL](#reading-from-a-url)
@@ -15,7 +26,9 @@ Read and modify EXIF data. A robust library to parse and edit EXIF metadata in J
   * [Working with Buffers](#working-with-buffers)
 - [API](#api)
   * [Core Functions](#core-functions)
+  * [Tag Constants](#tag-constants)
   * [Helpers](#helpers)
+  * [GPS Helper](#gps-helper)
 
 <!-- tocstop -->
 
@@ -27,16 +40,46 @@ Read and modify EXIF data. A robust library to parse and edit EXIF metadata in J
 npm i -S @substrate-system/exif
 ```
 
+## Import Patterns
+
+This library uses named exports. You can import what you need:
+
+```ts
+// Named imports (recommended)
+import {
+  load,
+  dump,
+  insert,
+  remove,
+  ImageIFD,
+  ExifIFD,
+  GPSIFD
+} from '@substrate-system/exif'
+
+// Or import everything as a namespace
+import * as exif from '@substrate-system/exif'
+```
+
 ## Browser Usage
 
-Import from the browser-specific entry point for helpful utilities like
+Import from the browser-specific entry point for utilities like
 `loadFromBlob` and `loadFromUrl`.
 
 ```ts
 import * as exif from '@substrate-system/exif/browser'
+
+// Or use named imports
+import {
+  loadFromBlob,
+  loadFromUrl,
+  ImageIFD,
+  ExifIFD
+} from '@substrate-system/exif/browser'
 ```
 
 ### Reading from a File Input
+
+Read and update EXIF metadata in a browser.
 
 ```html
 <input type="file" id="file-input" />
@@ -46,8 +89,8 @@ import * as exif from '@substrate-system/exif/browser'
 import * as exif from '@substrate-system/exif/browser'
 
 const input = document.getElementById('file-input')
-input.addEventListener('change', async (e) => {
-  const file = e.target.files[0]
+input.addEventListener('change', async (ev) => {
+  const file = ev.target.files[0]
   
   // Load EXIF data directly from the File object
   const exifData = await exif.loadFromBlob(file)
@@ -78,10 +121,18 @@ async function logExifFromUrl(url) {
 
 ## Node.js Usage
 
-Import from the node-specific entry point for filesystem and Buffer helpers.
+Import from the node-specific entry point for filesystem and `Buffer` helpers.
 
 ```ts
 import * as exif from '@substrate-system/exif/node'
+
+// Or use named imports
+import {
+  modifyFile,
+  loadFromFile,
+  ExifIFD,
+  GPSIFD
+} from '@substrate-system/exif/node'
 ```
 
 ### Reading and Writing Files
@@ -130,28 +181,66 @@ The library is built around `Uint8Array` for cross-platform compatibility.
 
 ### Core Functions
 
-Available in both `browser` and `node` imports.
+Available as named exports from all entry points.
 
-- **`load(data: Uint8Array): IExif`**  
+- **`load(data: Uint8Array): IExif`**
   Parse EXIF data from a JPEG binary array.
 
-- **`dump(exifData: IExif): Uint8Array`**  
+- **`dump(exifData: IExif): Uint8Array`**
   Convert an EXIF object into a binary array ready for insertion.
 
-- **`insert(exifBinary: Uint8Array, jpegData: Uint8Array): Uint8Array`**  
+- **`insert(exifBinary: Uint8Array, jpegData: Uint8Array): Uint8Array`**
   Insert an EXIF binary block into a JPEG binary array.
 
-- **`remove(jpegData: Uint8Array): Uint8Array`**  
+- **`remove(jpegData: Uint8Array): Uint8Array`**
   Remove EXIF data from a JPEG binary array.
+
+### Tag Constants
+
+EXIF tag constants are available as named exports:
+
+- **`ImageIFD`** - Image (0th IFD) tags
+- **`ExifIFD`** - Exif sub-IFD tags
+- **`GPSIFD`** - GPS sub-IFD tags
+- **`InteropIFD`** - Interoperability tags
+
+Example usage:
+```ts
+import { load, ImageIFD, ExifIFD, GPSIFD } from '@substrate-system/exif'
+
+const exifData = load(jpegBytes)
+const cameraMake = exifData['0th'][ImageIFD.Make]
+const userComment = exifData.Exif[ExifIFD.UserComment]
+const altitude = exifData.GPS[GPSIFD.GPSAltitude]
+```
 
 ### Helpers
 
 **Browser (`@substrate-system/exif/browser`)**
 - `loadFromBlob(blob: Blob): Promise<IExif>`
 - `loadFromUrl(url: string): Promise<IExif>`
+- `dumpToBlob(exifData: IExif): Blob`
 - `insertIntoBlob(exifBlob: Blob, jpegBlob: Blob): Promise<Blob>`
 
 **Node.js (`@substrate-system/exif/node`)**
 - `loadFromFile(path: string): IExif`
 - `loadFromBuffer(buffer: Buffer): IExif`
+- `dumpToBuffer(exifData: IExif): Buffer`
+- `insertIntoBuffer(exifBuffer: Buffer, jpegBuffer: Buffer): Buffer`
 - `modifyFile(input: string, output: string, callback: (data: IExif) => IExif): void`
+
+### GPS Helper
+
+The `GPSHelper` export provides utilities for GPS coordinate conversion:
+
+```ts
+import { GPSHelper } from '@substrate-system/exif'
+
+// Convert decimal degrees to DMS rational format for EXIF
+const dmsRational = GPSHelper.degToDmsRational(37.7749)
+// Returns: [[37, 1], [46, 1], [2964, 100]]
+
+// Convert DMS rational format back to decimal degrees
+const decimal = GPSHelper.dmsRationalToDeg([[37, 1], [46, 1], [2964, 100]], 'N')
+// Returns: 37.7749
+```

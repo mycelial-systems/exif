@@ -9,28 +9,28 @@ import { load, dump, insert, remove } from './index.js'
 /**
  * Convert Node.js Buffer to Uint8Array
  */
-export function bufferToUint8Array (buffer: Buffer): Uint8Array {
+export function bufferToUint8Array (buffer:Buffer):Uint8Array {
     return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
 }
 
 /**
  * Convert Uint8Array to Node.js Buffer
  */
-export function uint8ArrayToBuffer (arr: Uint8Array): Buffer {
+export function uint8ArrayToBuffer (arr:Uint8Array):Buffer {
     return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength)
 }
 
 /**
  * Load EXIF data from a Buffer
  */
-export function loadFromBuffer (buffer: Buffer): IExif {
+export function loadFromBuffer (buffer:Buffer):IExif {
     return load(bufferToUint8Array(buffer))
 }
 
 /**
  * Load EXIF data from a file path
  */
-export function loadFromFile (filePath: string): IExif {
+export function loadFromFile (filePath:string):IExif {
     const buffer = fs.readFileSync(filePath)
     return loadFromBuffer(buffer)
 }
@@ -38,7 +38,7 @@ export function loadFromFile (filePath: string): IExif {
 /**
  * Dump EXIF data and return as Buffer
  */
-export function dumpToBuffer (exifDict: any): Buffer {
+export function dumpToBuffer (exifDict:IExif):Buffer {
     const result = dump(exifDict)
     return uint8ArrayToBuffer(result)
 }
@@ -46,7 +46,7 @@ export function dumpToBuffer (exifDict: any): Buffer {
 /**
  * Insert EXIF data into JPEG Buffer
  */
-export function insertIntoBuffer (exif: Buffer, jpeg: Buffer): Buffer {
+export function insertIntoBuffer (exif:Buffer, jpeg:Buffer):Buffer {
     const result = insert(
         bufferToUint8Array(exif),
         bufferToUint8Array(jpeg)
@@ -57,7 +57,7 @@ export function insertIntoBuffer (exif: Buffer, jpeg: Buffer): Buffer {
 /**
  * Remove EXIF data from JPEG Buffer
  */
-export function removeFromBuffer (jpeg: Buffer): Buffer {
+export function removeFromBuffer (jpeg:Buffer):Buffer {
     const result = remove(bufferToUint8Array(jpeg))
     return uint8ArrayToBuffer(result)
 }
@@ -66,10 +66,10 @@ export function removeFromBuffer (jpeg: Buffer): Buffer {
  * Load EXIF from file, modify, and save back
  */
 export function modifyFile (
-    inputPath: string,
-    outputPath: string,
-    modifier: (exif: IExif) => IExif
-): void {
+    inputPath:string,
+    outputPath:string,
+    modifier:(exif:IExif) => IExif
+):void {
     const inputBuffer = fs.readFileSync(inputPath)
     const exifData = loadFromBuffer(inputBuffer)
     const modifiedExif = modifier(exifData)
@@ -81,4 +81,4 @@ export function modifyFile (
 // Re-export core functions
 export { load, dump, insert, remove }
 export type { IExif, IExifElement } from './index.js'
-export { ImageIFD, ExifIFD, GPSIFD, GPSHelper, InteropIFD } from './index.js'
+export { GPSHelper, InteropIFD } from './index.js'

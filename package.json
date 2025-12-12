@@ -1,10 +1,10 @@
 {
-  "name": "@susbtrate-system/exif",
+  "name": "@substrate-system/exif",
   "type": "module",
   "version": "1.0.6",
   "description": "Read and write exif data.",
   "main": "dist/index.js",
-   "files": [
+  "files": [
     "./dist/*"
   ],
   "exports": {
@@ -12,27 +12,25 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./node": "./dist/node.js",
     "./*": {
-      "import": [
-        "./dist/*.js",
-        "./dist/*"
-      ],
-      "require": [
-        "./dist/*.cjs",
-        "./dist/*"
-      ]
+      "import": "./dist/*.js",
+      "require": "./dist/*.cjs"
     }
   },
   "scripts": {
     "lint": "eslint \"./**/*.{ts,js}\"",
-    "test": "esbuild ./test/index.ts --bundle --platform=node --format=esm | node",
-    "build-cjs": "esbuild src/*.ts --format=cjs --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.cjs --sourcemap",
-    "build-cjs:min": "esbuild src/*.ts --format=cjs --minify --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.min.cjs --sourcemap",
-    "build-esm": "esbuild src/*.ts --format=esm --metafile=dist/meta.json --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.build.json --outDir dist",
-    "build-esm:min": "esbuild ./src/*.ts --format=esm --keep-names --bundle --tsconfig=tsconfig.build.json --minify --out-extension:.js=.min.js --outdir=./dist --sourcemap",
-    "build-example": "mkdir -p ./public && rm -rf ./public/* && VITE_DEBUG_MODE=staging vite --mode staging --base=\"/piexifjs\" build",
+    "test": "npm run test:node && npm run test:browser",
+    "test:node": "esbuild ./test/index.ts --bundle --platform=node --format=esm | node",
+    "test:browser": "esbuild ./test/browser.ts --bundle --loader:.jpg=binary | tapout",
+    "build-cjs": "esbuild $(find src -maxdepth 1 -name '*.ts' ! -name 'node.ts') --format=cjs --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.cjs --sourcemap",
+    "build-cjs:min": "esbuild $(find src -maxdepth 1 -name '*.ts' ! -name 'node.ts') --format=cjs --minify --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.min.cjs --sourcemap",
+    "build-esm": "esbuild $(find src -maxdepth 1 -name '*.ts' ! -name 'node.ts') --format=esm --metafile=dist/meta.json --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.build.json --outDir dist",
+    "build-esm:min": "esbuild $(find src -maxdepth 1 -name '*.ts' ! -name 'node.ts') --format=esm --keep-names --bundle --tsconfig=tsconfig.build.json --minify --out-extension:.js=.min.js --outdir=./dist --sourcemap",
+    "build-example": "mkdir -p ./public && rm -rf ./public/* && VITE_DEBUG_MODE=staging vite --mode staging --base=\"/exif\" build",
     "build-docs": "typedoc ./src/index.ts",
-    "build": "mkdir -p ./dist && rm -rf ./dist/* && npm run build-cjs && npm run build-esm && npm run build-esm:min && npm run build-cjs:min",
+    "build": "mkdir -p ./dist && rm -rf ./dist/* && npm run build-cjs && npm run build-esm && npm run build-esm:min && npm run build-cjs:min && npm run build:node",
+    "build:node": "esbuild ./src/node.ts --format=esm --keep-names --tsconfig=tsconfig.node.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.node.json --outDir dist",
     "start": "vite",
     "toc": "markdown-toc --maxdepth 3 -i README.md",
     "preversion": "npm run lint",
@@ -40,9 +38,9 @@
     "postversion": "git push --follow-tags && npm publish",
     "prepublishOnly": "npm run build"
   },
-  "dependencies": {},
   "devDependencies": {
     "@preact/preset-vite": "^2.10.2",
+    "@preact/signals": "^2.5.1",
     "@substrate-system/debug": "^0.9.24",
     "@substrate-system/tapout": "^0.0.30",
     "@substrate-system/tapzero": "^0.10.15",
@@ -64,19 +62,20 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/substrate-system/piexifjs.git"
+    "url": "https://github.com/substrate-system/exif.git"
   },
   "keywords": [
     "jpeg",
-    "exif"
+    "exif",
+    "metadata"
   ],
   "author": "hMatoba",
   "contributors": [
     "nichoth <nichoth@nichoth.com> (https://nichoth.com)"
   ],
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "bugs": {
-    "url": "https://github.com/substrate-system/piexifjs/issues"
+    "url": "https://github.com/substrate-system/exif/issues"
   },
-  "homepage": "https://github.com/substrate-system/piexifjs"
+  "homepage": "https://github.com/substrate-system/exif"
 }

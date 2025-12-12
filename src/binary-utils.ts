@@ -1,5 +1,7 @@
+import { type ExifValue } from './index.js'
+
 /**
- * Binary utilities for working with Uint8Array instead of binary strings
+ * Binary utilities for working with Uint8Array
  */
 
 /**
@@ -71,9 +73,10 @@ export function pack (format: string, values: number[]): Uint8Array {
 
 /**
  * Unpack a Uint8Array into numbers according to format string
- * Format: '<' or '>' for endianness, followed by format chars (B=byte, H=short, L=long, l=signed long, b=signed byte)
+ * Format: '<' or '>' for endianness, followed by format chars
+ * (B=byte, H=short, L=long, l=signed long, b=signed byte)
  */
-export function unpack (format: string, data: Uint8Array): number[] {
+export function unpack (format:string, data:Uint8Array):ExifValue[] {
     // Calculate expected length
     let expectedLength = 0
     for (let i = 1; i < format.length; i++) {

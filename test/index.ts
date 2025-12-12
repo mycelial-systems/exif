@@ -1,6 +1,19 @@
 import { test } from '@substrate-system/tapzero'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import {
+    Make,
+    XResolution,
+    YResolution,
+    Software
+} from '../src/tags/image-ifd.js'
+import {
+    DateTimeOriginal,
+    LensMake,
+    Sharpness,
+    LensSpecification
+} from '../src/tags/exif-ifd.js'
+import { GPSVersionID, GPSDateStamp } from '../src/tags/gps-ifd.js'
 import * as exif from '../src/node.js'
 
 // When bundled and piped to node, we need to use process.cwd()
@@ -13,16 +26,16 @@ test('basic load, dump, and insert', t => {
     const exifIfd: Record<number, any> = {}
     const gps: Record<number, any> = {}
 
-    zeroth[exif.ImageIFD.Make] = 'Make'
-    zeroth[exif.ImageIFD.XResolution] = [777, 1]
-    zeroth[exif.ImageIFD.YResolution] = [777, 1]
-    zeroth[exif.ImageIFD.Software] = 'Piexifjs'
-    exifIfd[exif.ExifIFD.DateTimeOriginal] = '2010:10:10 10:10:10'
-    exifIfd[exif.ExifIFD.LensMake] = 'LensMake'
-    exifIfd[exif.ExifIFD.Sharpness] = 777
-    exifIfd[exif.ExifIFD.LensSpecification] = [[1, 1], [1, 1], [1, 1], [1, 1]]
-    gps[exif.GPSIFD.GPSVersionID] = [7, 7, 7, 7]
-    gps[exif.GPSIFD.GPSDateStamp] = '1999:99:99 99:99:99'
+    zeroth[Make] = 'Make'
+    zeroth[XResolution] = [777, 1]
+    zeroth[YResolution] = [777, 1]
+    zeroth[Software] = 'Piexifjs'
+    exifIfd[DateTimeOriginal] = '2010:10:10 10:10:10'
+    exifIfd[LensMake] = 'LensMake'
+    exifIfd[Sharpness] = 777
+    exifIfd[LensSpecification] = [[1, 1], [1, 1], [1, 1], [1, 1]]
+    gps[GPSVersionID] = [7, 7, 7, 7]
+    gps[GPSDateStamp] = '1999:99:99 99:99:99'
 
     const exifObj = { '0th': zeroth, Exif: exifIfd, GPS: gps }
     const exifbytes = exif.dumpToBuffer(exifObj)

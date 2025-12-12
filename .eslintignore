@@ -1,5 +1,3 @@
 dist
 node_modules
-coverage
-phestum.js
-tests/mtest.js
+public
