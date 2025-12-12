@@ -1,5 +1,5 @@
 import { equals, unpack, bytesToString } from './binary-utils'
-import { type IExifElement, type ExifValue } from './index.js'
+import { type ExifElement, type ExifValue } from './index.js'
 import { type TagKey, type IfdName, TAGS } from './tags/index.js'
 import {
     splitIntoSegments,
@@ -36,8 +36,8 @@ export class ExifReader {
         }
     }
 
-    getIfd (pointer:number, ifdName:IfdName):IExifElement {
-        const ifdDict:IExifElement = {}
+    getIfd (pointer:number, ifdName:IfdName):ExifElement {
+        const ifdDict:ExifElement = {}
         const tagCount = unpack(this.endianMark + 'H',
             this.tiftag!.subarray(pointer, pointer + 2))[0] as number
         const offset = pointer + 2

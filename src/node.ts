@@ -3,7 +3,7 @@
  */
 
 import * as fs from 'node:fs'
-import type { IExif } from './index.js'
+import type { Exif } from './index.js'
 import { load, dump, insert, remove } from './index.js'
 
 /**
@@ -23,14 +23,14 @@ export function uint8ArrayToBuffer (arr:Uint8Array):Buffer {
 /**
  * Load EXIF data from a Buffer
  */
-export function loadFromBuffer (buffer:Buffer):IExif {
+export function loadFromBuffer (buffer:Buffer):Exif {
     return load(bufferToUint8Array(buffer))
 }
 
 /**
  * Load EXIF data from a file path
  */
-export function loadFromFile (filePath:string):IExif {
+export function loadFromFile (filePath:string):Exif {
     const buffer = fs.readFileSync(filePath)
     return loadFromBuffer(buffer)
 }
@@ -38,7 +38,7 @@ export function loadFromFile (filePath:string):IExif {
 /**
  * Dump EXIF data and return as Buffer
  */
-export function dumpToBuffer (exifDict:IExif):Buffer {
+export function dumpToBuffer (exifDict:Exif):Buffer {
     const result = dump(exifDict)
     return uint8ArrayToBuffer(result)
 }
@@ -68,7 +68,7 @@ export function removeFromBuffer (jpeg:Buffer):Buffer {
 export function modifyFile (
     inputPath:string,
     outputPath:string,
-    modifier:(exif:IExif) => IExif
+    modifier:(exif:Exif) => Exif
 ):void {
     const inputBuffer = fs.readFileSync(inputPath)
     const exifData = loadFromBuffer(inputBuffer)
@@ -80,5 +80,5 @@ export function modifyFile (
 
 // Re-export core functions
 export { load, dump, insert, remove }
-export type { IExif, IExifElement } from './index.js'
+export type { Exif, ExifElement } from './index.js'
 export { GPSHelper, InteropIFD } from './index.js'

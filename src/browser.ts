@@ -2,7 +2,7 @@
  * Browser-specific helpers for working with Blobs and URLs
  */
 
-import type { IExif } from './index.js'
+import type { Exif } from './index.js'
 import { load, dump, insert, remove } from './index.js'
 
 /**
@@ -23,7 +23,7 @@ export function uint8ArrayToBlob (arr:Uint8Array, type = 'image/jpeg'):Blob {
 /**
  * Load EXIF data from a Blob
  */
-export async function loadFromBlob (blob:Blob | File):Promise<IExif> {
+export async function loadFromBlob (blob:Blob | File):Promise<Exif> {
     const arr = await blobToUint8Array(blob)
     return load(arr)
 }
@@ -34,7 +34,7 @@ export const loadFromFile = loadFromBlob
  * Dump EXIF data and return as Blob
  */
 export function dumpToBlob (
-    exifDict:IExif,
+    exifDict:Exif,
     type = 'application/octet-stream'
 ):Blob {
     const result = dump(exifDict)
@@ -78,7 +78,7 @@ export function revokeDownloadUrl (url:string):void {
 /**
  * Load EXIF from an image URL (must be same-origin or CORS-enabled)
  */
-export async function loadFromUrl (url:string):Promise<IExif> {
+export async function loadFromUrl (url:string):Promise<Exif> {
     const response = await fetch(url)
     const blob = await response.blob()
     return loadFromBlob(blob)
@@ -87,7 +87,7 @@ export async function loadFromUrl (url:string):Promise<IExif> {
 /**
  * Load EXIF from a data URL (base64 encoded)
  */
-export function loadFromDataUrl (dataUrl:string):IExif {
+export function loadFromDataUrl (dataUrl:string):Exif {
     // Extract the base64 part
     const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/)
     if (!matches) {
@@ -106,4 +106,4 @@ export function loadFromDataUrl (dataUrl:string):IExif {
 
 // Re-export core functions
 export { load, dump, insert, remove }
-export type { IExif, IExifElement } from './index.js'
+export type { Exif, ExifElement } from './index.js'

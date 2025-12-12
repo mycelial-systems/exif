@@ -21,17 +21,20 @@ import {
 
 export type ExifValue = number|number[]|string|[number, number]|[number, number][]
 
-export interface IExifElement {
+export interface ExifElement {
     [key:number]:ExifValue;
     first_ifd_pointer?:Uint8Array;
 }
 
-export interface IExif {
-    '0th'?:IExifElement;
-    '1st'?:IExifElement;
-    Exif?:IExifElement;
-    GPS?:IExifElement;
-    Interop?:IExifElement;
+export const ZEROTH = '0th'
+export const FIRST = '1st'
+
+export interface Exif {
+    '0th'?:ExifElement;
+    '1st'?:ExifElement;
+    Exif?:ExifElement;
+    GPS?:ExifElement;
+    Interop?:ExifElement;
     thumbnail?:Uint8Array|null;
 }
 
@@ -67,7 +70,7 @@ export function insert (exif:Uint8Array, jpeg:Uint8Array):Uint8Array {
     return mergeSegments(segments, exifSegment)
 }
 
-export function load (data:Uint8Array):IExif {
+export function load (data:Uint8Array):Exif {
     let inputData:Uint8Array
 
     if (equals(data, JPEG_MARKER, 0, 0, 2)) {
@@ -78,7 +81,7 @@ export function load (data:Uint8Array):IExif {
         throw new Error("'load' gots invalid file data.")
     }
 
-    const exifDict:IExif = {
+    const exifDict:Exif = {
         '0th': {},
         Exif: {},
         GPS: {},
@@ -100,17 +103,17 @@ export function load (data:Uint8Array):IExif {
 
     let pointer:number = unpack(exifReader.endianMark + 'L',
         exifReader.tiftag.subarray(4, 8))[0] as number
-    exifDict['0th'] = exifReader.getIfd(pointer, '0th')
+    exifDict[ZEROTH] = exifReader.getIfd(pointer, ZEROTH)
 
-    const firstIfdPointer = exifDict['0th'].first_ifd_pointer
-    delete exifDict['0th'].first_ifd_pointer
+    const firstIfdPointer = exifDict[ZEROTH]!.first_ifd_pointer
+    delete exifDict[ZEROTH]!.first_ifd_pointer
 
-    if (34665 in exifDict['0th']) {
-        pointer = exifDict['0th'][34665] as number
+    if (34665 in exifDict[ZEROTH]!) {
+        pointer = exifDict[ZEROTH][34665] as number
         exifDict.Exif = exifReader.getIfd(pointer, 'Exif')
     }
-    if (34853 in exifDict['0th']) {
-        pointer = exifDict['0th'][34853] as number
+    if (34853 in exifDict[ZEROTH]!) {
+        pointer = exifDict[ZEROTH][34853] as number
         exifDict.GPS = exifReader.getIfd(pointer, 'GPS')
     }
     if (40965 in exifDict.Exif!) {
@@ -120,10 +123,10 @@ export function load (data:Uint8Array):IExif {
     if (firstIfdPointer && !equals(firstIfdPointer, repeat(0, 4))) {
         pointer = unpack(exifReader.endianMark + 'L',
             firstIfdPointer)[0] as number
-        exifDict['1st'] = exifReader.getIfd(pointer, '1st')
-        if ((513 in exifDict['1st']) && (514 in exifDict['1st'])) {
-            const jpegOffset = exifDict['1st'][513] as number
-            const jpegLength = exifDict['1st'][514] as number
+        exifDict[FIRST] = exifReader.getIfd(pointer, FIRST)
+        if ((513 in exifDict[FIRST]!) && (514 in exifDict[FIRST])) {
+            const jpegOffset = exifDict[FIRST][513] as number
+            const jpegLength = exifDict[FIRST][514] as number
             const end = jpegOffset + jpegLength
             const thumb = exifReader.tiftag.subarray(jpegOffset, end)
             exifDict.thumbnail = thumb
@@ -133,7 +136,7 @@ export function load (data:Uint8Array):IExif {
     return exifDict
 }
 
-export function dump (exifDictOriginal:IExif):Uint8Array {
+export function dump (exifDictOriginal:Exif):Uint8Array {
     const TIFF_HEADER_LENGTH = 8
 
     const exifDict = copy(exifDictOriginal)
@@ -146,14 +149,14 @@ export function dump (exifDictOriginal:IExif):Uint8Array {
     let interopIs = false
     let firstIs = false
 
-    let zerothIfd:IExifElement
-    let exifIfd:IExifElement = {}
-    let interopIfd:IExifElement = {}
-    let gpsIfd:IExifElement = {}
-    let firstIfd:IExifElement = {}
+    let zerothIfd:ExifElement
+    let exifIfd:ExifElement = {}
+    let interopIfd:ExifElement = {}
+    let gpsIfd:ExifElement = {}
+    let firstIfd:ExifElement = {}
 
-    if ('0th' in exifDict) {
-        zerothIfd = exifDict['0th']
+    if (ZEROTH in exifDict) {
+        zerothIfd = exifDict[ZEROTH]
     } else {
         zerothIfd = {}
     }
@@ -190,16 +193,16 @@ export function dump (exifDictOriginal:IExif):Uint8Array {
         delete zerothIfd[GPSTag]
     }
 
-    if (('1st' in exifDict) &&
+    if ((FIRST in exifDict) &&
         ('thumbnail' in exifDict) &&
         (exifDict.thumbnail != null)) {
         firstIs = true
-        exifDict['1st'][513] = 1
-        exifDict['1st'][514] = 1
-        firstIfd = exifDict['1st']
+        exifDict[FIRST][513] = 1
+        exifDict[FIRST][514] = 1
+        firstIfd = exifDict[FIRST]
     }
 
-    const zerothSet = _dictToBytes(zerothIfd, '0th', 0)
+    const zerothSet = _dictToBytes(zerothIfd, ZEROTH, 0)
     const zerothLength = (
         zerothSet[0].length + Number(exifIs) * 12 + Number(gpsIs) * 12 + 4 +
         zerothSet[1].length
@@ -236,7 +239,7 @@ export function dump (exifDictOriginal:IExif):Uint8Array {
     }
     if (firstIs) {
         const offset = zerothLength + exifLength + gpsLength + interopLength
-        firstSet = _dictToBytes(firstIfd, '1st', offset)
+        firstSet = _dictToBytes(firstIfd, FIRST, offset)
         thumbnail = _getThumbnail(exifDict.thumbnail)
         if (thumbnail.length > 64000) {
             throw new Error('Given thumbnail is too large. max 64kB')
@@ -487,7 +490,7 @@ function _valueToBytes (
 }
 
 function _dictToBytes (
-    ifdDict:IExifElement,
+    ifdDict:ExifElement,
     ifd:TagKey,
     ifdOffset:number
 ):Uint8Array[] {
@@ -495,7 +498,7 @@ function _dictToBytes (
     const tagCount = Object.keys(ifdDict).length
     const entryHeader = pack('>H', [tagCount])
     let entriesLength:number
-    if (['0th', '1st'].indexOf(ifd) > -1) {
+    if ([ZEROTH, FIRST].indexOf(ifd) > -1) {
         entriesLength = 2 + tagCount * 12 + 4
     } else {
         entriesLength = 2 + tagCount * 12
@@ -505,11 +508,11 @@ function _dictToBytes (
 
     for (const keyStr in ifdDict) {
         const key = parseInt(keyStr)
-        if ((ifd === '0th') && ([34665, 34853].indexOf(key) > -1)) {
+        if ((ifd === ZEROTH) && ([34665, 34853].indexOf(key) > -1)) {
             continue
         } else if ((ifd === 'Exif') && (key === 40965)) {
             continue
-        } else if ((ifd === '1st') && ([513, 514].indexOf(key) > -1)) {
+        } else if ((ifd === FIRST) && ([513, 514].indexOf(key) > -1)) {
             continue
         }
 

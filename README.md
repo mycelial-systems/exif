@@ -185,10 +185,10 @@ The library is built around `Uint8Array` for cross-platform compatibility.
 
 Available as named exports from all entry points.
 
-- **`load(data: Uint8Array): IExif`**
+- **`load(data: Uint8Array): Exif`**
   Parse EXIF data from a JPEG binary array.
 
-- **`dump(exifData: IExif): Uint8Array`**
+- **`dump(exifData: Exif): Uint8Array`**
   Convert an EXIF object into a binary array ready for insertion.
 
 - **`insert(exifBinary: Uint8Array, jpegData: Uint8Array): Uint8Array`**
@@ -226,17 +226,17 @@ const altitude = exifData.GPS[GPSIFD.GPSAltitude]
 ### Helpers
 
 **Browser (`@substrate-system/exif/browser`)**
-- `loadFromBlob(blob: Blob): Promise<IExif>`
-- `loadFromUrl(url: string): Promise<IExif>`
-- `dumpToBlob(exifData: IExif): Blob`
+- `loadFromBlob(blob: Blob): Promise<Exif>`
+- `loadFromUrl(url: string): Promise<Exif>`
+- `dumpToBlob(exifData: Exif): Blob`
 - `insertIntoBlob(exifBlob: Blob, jpegBlob: Blob): Promise<Blob>`
 
 **Node.js (`@substrate-system/exif/node`)**
-- `loadFromFile(path: string): IExif`
-- `loadFromBuffer(buffer: Buffer): IExif`
-- `dumpToBuffer(exifData: IExif): Buffer`
+- `loadFromFile(path: string): Exif`
+- `loadFromBuffer(buffer: Buffer): Exif`
+- `dumpToBuffer(exifData: Exif): Buffer`
 - `insertIntoBuffer(exifBuffer: Buffer, jpegBuffer: Buffer): Buffer`
-- `modifyFile(input: string, output: string, callback: (data: IExif) => IExif): void`
+- `modifyFile(input: string, output: string, callback: (data: Exif) => Exif): void`
 
 ### GPS Helper
 

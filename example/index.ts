@@ -2,10 +2,10 @@ import { render } from 'preact'
 import { useState, useCallback } from 'preact/hooks'
 import { html } from 'htm/preact'
 import { loadFromBlob, loadFromUrl } from '../src/browser.js'
-import type { IExif } from '../src/index.js'
+import type { Exif } from '../src/index.js'
 
 function App () {
-    const [exif, setExif] = useState<IExif | null>(null)
+    const [exif, setExif] = useState<Exif | null>(null)
     const [preview, setPreview] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [urlInput, setUrlInput] = useState<string>('')
