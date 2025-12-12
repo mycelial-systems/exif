@@ -141,6 +141,8 @@ The `modifyFile` helper makes it easy to read, update, and save in one go.
 
 ```ts
 import * as exif from '@substrate-system/exif/node'
+import * as ExifIFD from '@substrate-system/exif/tags/exif-ifd'
+import * as GPSIFD from '@substrate-system/exif/tags/gps-ifd'
 
 const inputPath = './photo.jpg'
 const outputPath = './parsed-photo.jpg'
@@ -148,10 +150,10 @@ const outputPath = './parsed-photo.jpg'
 // Read, modify, and save
 exif.modifyFile(inputPath, outputPath, (exifData) => {
   // Add a UserComment
-  exifData.Exif[exif.ExifIFD.UserComment] = "Edited with @substrate-system/exif"
+  exifData.Exif[ExifIFD.UserComment] = "Edited with @substrate-system/exif"
   
   // Update GPS Altitude (Rational type: [numerator, denominator])
-  exifData.GPS[exif.GPSIFD.GPSAltitude] = [100, 1] 
+  exifData.GPS[GPSIFD.GPSAltitude] = [100, 1] 
   
   return exifData
 })
@@ -204,9 +206,16 @@ EXIF tag constants are available as named exports:
 - **`GPSIFD`** - GPS sub-IFD tags
 - **`InteropIFD`** - Interoperability tags
 
-Example usage:
+Example:
+
 ```ts
-import { load, ImageIFD, ExifIFD, GPSIFD } from '@substrate-system/exif'
+import {
+  load,
+  ImageIFD,
+  GPSIFD
+} from '@substrate-system/exif'
+import * as ExifIFD from '@substrate-system/exif/tags/exif-ifd'
+import * as ImageIFD from '@substrate-system/exif/tags/image-ifd'
 
 const exifData = load(jpegBytes)
 const cameraMake = exifData['0th'][ImageIFD.Make]
