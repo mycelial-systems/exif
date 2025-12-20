@@ -12,10 +12,12 @@ import {
 test('stripExif - JPEG', (t) => {
     // Construct a mock JPEG: [SOI] [APP1/EXIF] [SOS] [Data]
     // APP1 data must start with "Exif\0\0" header for the code to recognize it
-    const exifData = new Uint8Array([0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x01, 0x02]) // "Exif\0\0" + 2 bytes
+    const exifData = new Uint8Array([0x45, 0x78, 0x69, 0x66, 0x00, 0x00,
+        0x01, 0x02])  // "Exif\0\0" + 2 bytes
     const jpeg = new Uint8Array([
         ...JPEG_MARKER,
-        ...EXIF_MARKER, 0x00, 0x0a, ...exifData, // APP1 segment (length=10: 2 for length + 8 data)
+        // APP1 segment (length=10: 2 for length + 8 data)
+        ...EXIF_MARKER, 0x00, 0x0a, ...exifData,
         ...SOS_MARKER, 0x01, 0x02 // Image data
     ])
 
@@ -39,14 +41,18 @@ test('stripExif - JPEG', (t) => {
 
 test('stripExif - PNG', (t) => {
     // Construct mock PNG: [Sig(8)] [IHDR] [eXIf] [IEND]
-    // PNG signature is 8 bytes, chunks are: length(4) + type(4) + data(length) + CRC(4)
-    const pngSignature = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+    // PNG signature is 8 bytes, chunks are:
+    // length(4) + type(4) + data(length) + CRC(4)
+    const pngSignature = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A,
+        0x1A, 0x0A])
     const png = new Uint8Array([
         ...pngSignature,
         // IHDR chunk: length=13, type=IHDR, data=13 bytes, CRC=4 bytes
-        0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0,
         // eXIf chunk: length=4, type=eXIf, data=4 bytes, CRC=4 bytes
-        0x00, 0x00, 0x00, 0x04, 0x65, 0x58, 0x49, 0x66, 0x01, 0x02, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x04, 0x65, 0x58, 0x49, 0x66, 0x01, 0x02, 0x03, 0x04,
+        0x00, 0x00, 0x00, 0x00,
         // IEND chunk: length=0, type=IEND, CRC=4 bytes
         0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82
     ])
@@ -68,17 +74,21 @@ test('stripExif - WebP', (t) => {
     // [RIFF] [Size] [WEBP] [VP8 ] [Size] [...] [EXIF] [Size] [...]
     const webp = new Uint8Array([
         ...RIFF_HEADER,
-        0x20, 0x00, 0x00, 0x00, // Total size (mock)
+        // Total size (mock)
+        0x20, 0x00, 0x00, 0x00,
         ...WEBP_HEADER,
-        0x56, 0x50, 0x38, 0x20, 0x04, 0x00, 0x00, 0x00, 0xaa, 0xbb, 0xcc, 0xdd, // VP8 chunk
-        0x45, 0x58, 0x49, 0x46, 0x04, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04  // EXIF chunk
+        // VP8 chunk
+        0x56, 0x50, 0x38, 0x20, 0x04, 0x00, 0x00, 0x00, 0xaa, 0xbb, 0xcc, 0xdd,
+        // EXIF chunk
+        0x45, 0x58, 0x49, 0x46, 0x04, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04
     ])
 
     const stripped = stripExif(webp)
     const view = new DataView(stripped.buffer)
 
     t.ok(stripped.length < webp.length, 'WebP size should decrease')
-    t.equal(view.getUint32(4, true), stripped.length - 8, 'should update RIFF size header')
+    t.equal(view.getUint32(4, true), stripped.length - 8,
+        'should update RIFF size header')
 
     const typeString = new TextDecoder().decode(stripped)
     t.ok(!typeString.includes('EXIF'), 'should remove EXIF chunk')

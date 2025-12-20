@@ -38,6 +38,38 @@ Read and modify EXIF data in Browsers and Node.
 npm i -S @substrate-system/exif
 ```
 
+## Example
+
+### Read EXIF data
+
+```ts
+import { load } from '@substrate-system/exif'
+import { getSummary } from '@substrate-system/exif/summary'
+
+const exif = await load(data)  // Uint8Array of image data
+
+const info = getSummary(exif)
+
+// => {
+//   make,
+//   model,
+//   software,
+//   artist,
+//   copyright,
+//   ...
+// }
+```
+
+### Remove EXIF data
+
+Just remove all the exif data from an image.
+
+```ts
+import { stripExif } from '@substrate-system/exif/remove'
+
+const stripped = stripExif(jpeg)
+```
+
 ## Browsers
 
 Import from the browser-specific entry point for utilities like
@@ -97,7 +129,7 @@ async function logExifFromUrl(url) {
 }
 ```
 
-## Node.js Usage
+## Node.js
 
 Import from the node-specific entry point for filesystem and `Buffer` helpers.
 

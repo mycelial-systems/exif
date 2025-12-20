@@ -12,7 +12,33 @@ import {
     ZEROTH
 } from './index.js'
 
-export function getSummary (exif:Exif) {
+export type SummaryKeys =
+    | 'make'
+    | 'model'
+    | 'software'
+    | 'artist'
+    | 'copyright'
+    | 'lens'
+    | 'dateTime'
+    | 'dimensions'
+    | 'resolution'
+    | 'iso'
+    | 'fNumber'
+    | 'apertureValue'
+    | 'exposure'
+    | 'focalLength'
+    | 'focalLength35mm'
+    | 'flash'
+    | 'colorSpace'
+    | 'exposureProgram'
+    | 'meteringMode'
+    | 'whiteBalance'
+    | 'location'
+    | 'altitude';
+
+export type ExifSummary = Record<SummaryKeys, string|null|undefined>;
+
+export function getSummary (exif:Exif):ExifSummary {
     const zeroth = exif[ZEROTH] || {}
     const exifData = exif.Exif || {}
     const gps = exif.GPS || {}
