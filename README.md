@@ -17,10 +17,13 @@ Read and modify EXIF data in Browsers and Node.
 <!-- toc -->
 
 - [Install](#install)
+- [Example](#example)
+  * [Read EXIF data](#read-exif-data)
+  * [Remove EXIF data](#remove-exif-data)
 - [Browsers](#browsers)
   * [Reading from a File Input](#reading-from-a-file-input)
   * [Reading from a URL](#reading-from-a-url)
-- [Node.js Usage](#nodejs-usage)
+- [Node.js](#nodejs)
   * [Reading and Writing Files](#reading-and-writing-files)
   * [Working with Buffers](#working-with-buffers)
 - [API](#api)
