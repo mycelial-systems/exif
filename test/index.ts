@@ -16,6 +16,8 @@ import {
 import { GPSVersionID, GPSDateStamp } from '../src/tags/gps-ifd.js'
 import * as exif from '../src/node.js'
 
+import './remove.js'
+
 // When bundled and piped to node, we need to use process.cwd()
 const testFilesDir = path.join(process.cwd(), 'test', 'files')
 
@@ -147,3 +149,4 @@ test('remove test', async t => {
     t.equal(failedFile, 0, `should have 0 failed files (got ${failedFile})`)
     t.ok(passedFile > 0, `passed ${passedFile} file(s)`)
 })
+

@@ -4,7 +4,8 @@
 
 import * as fs from 'node:fs'
 import type { Exif } from './index.js'
-import { load, dump, insert, remove } from './index.js'
+import { load, dump, insert } from './index.js'
+import { stripExif } from './remove.js'
 
 /**
  * Convert Node.js Buffer to Uint8Array
@@ -58,7 +59,7 @@ export function insertIntoBuffer (exif:Buffer, jpeg:Buffer):Buffer {
  * Remove EXIF data from JPEG Buffer
  */
 export function removeFromBuffer (jpeg:Buffer):Buffer {
-    const result = remove(bufferToUint8Array(jpeg))
+    const result = stripExif(bufferToUint8Array(jpeg))
     return uint8ArrayToBuffer(result)
 }
 
@@ -79,6 +80,6 @@ export function modifyFile (
 }
 
 // Re-export core functions
-export { load, dump, insert, remove }
+export { load, dump, insert, stripExif }
 export type { Exif, ExifElement } from './index.js'
 export { GPSHelper, InteropIFD } from './index.js'

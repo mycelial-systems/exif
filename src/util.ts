@@ -6,6 +6,11 @@ export const EXIF_HEADER = stringToBytes('Exif\x00\x00')
 export const TIFF_HEADER_II = new Uint8Array([0x49, 0x49]) // Little-endian
 export const TIFF_HEADER_MM = new Uint8Array([0x4d, 0x4d]) // Big-endian
 
+// file Identification
+export const PNG_MARKER = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+export const RIFF_HEADER = new Uint8Array([0x52, 0x49, 0x46, 0x46]) // "RIFF"
+export const WEBP_HEADER = new Uint8Array([0x57, 0x45, 0x42, 0x50]) // "WEBP"
+
 export function splitIntoSegments (data:Uint8Array):Uint8Array[] {
     if (!equals(data, JPEG_MARKER, 0, 0, 2)) {
         throw new Error("Given data isn't JPEG.")

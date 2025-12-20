@@ -18,6 +18,7 @@ import {
     bytesToString,
     equals
 } from './binary-utils.js'
+import { stripExif } from './remove.js'
 
 export type ExifValue = number|number[]|string|[number, number]|[number, number][]
 
@@ -38,19 +39,8 @@ export interface Exif {
     thumbnail?:Uint8Array|null;
 }
 
-export function remove (jpeg:Uint8Array):Uint8Array {
-    if (!equals(jpeg, JPEG_MARKER, 0, 0, 2)) {
-        throw new Error('Given data is not jpeg.')
-    }
-
-    const segments = splitIntoSegments(jpeg)
-    const newSegments = segments.filter(function (seg) {
-        return !(equals(seg, EXIF_MARKER, 0, 0, 2) &&
-            equals(seg, EXIF_HEADER, 4, 0, 6))
-    })
-
-    return concat(...newSegments)
-}
+// Re-export stripExif as remove for backwards compatibility
+export { stripExif as remove } from './remove.js'
 
 export function insert (exif:Uint8Array, jpeg:Uint8Array):Uint8Array {
     if (!equals(exif, EXIF_HEADER, 0, 0, 6)) {
@@ -611,10 +601,10 @@ export const GPSHelper = {
 }
 
 export default {
-    remove,
     insert,
     load,
     dump,
+    remove: stripExif,
     InteropIFD,
     GPSHelper,
 }

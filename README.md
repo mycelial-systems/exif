@@ -45,7 +45,7 @@ npm i -S @substrate-system/exif
 This library uses named exports. You can import what you need:
 
 ```ts
-// Named imports (recommended)
+// Named imports
 import {
   load,
   dump,
@@ -179,23 +179,22 @@ const newImageBuffer = exif.insertIntoBuffer(exifBuffer, buffer)
 
 ## API
 
-The library is built around `Uint8Array` for cross-platform compatibility.
+The library is built around `Uint8Array`, should work in Node or browsers.
 
 ### Core Functions
 
 Available as named exports from all entry points.
 
-- **`load(data: Uint8Array): Exif`**
+- `load(data: Uint8Array): Exif`
   Parse EXIF data from a JPEG binary array.
-
-- **`dump(exifData: Exif): Uint8Array`**
+- `dump(exifData: Exif): Uint8Array`
   Convert an EXIF object into a binary array ready for insertion.
-
-- **`insert(exifBinary: Uint8Array, jpegData: Uint8Array): Uint8Array`**
+- `insert(exifBinary: Uint8Array, jpegData: Uint8Array): Uint8Array`
   Insert an EXIF binary block into a JPEG binary array.
-
-- **`remove(jpegData: Uint8Array): Uint8Array`**
-  Remove EXIF data from a JPEG binary array.
+- `remove(data: Uint8Array): Uint8Array`
+  Remove EXIF metadata from an image. Supports JPEG, PNG, and WebP formats.
+  Automatically detects the format via magic bytes. Returns the original
+  buffer unchanged if the format is unrecognized.
 
 ### Tag Constants
 
@@ -230,12 +229,14 @@ const altitude = exifData.GPS[GPSIFD.GPSAltitude]
 - `loadFromUrl(url: string): Promise<Exif>`
 - `dumpToBlob(exifData: Exif): Blob`
 - `insertIntoBlob(exifBlob: Blob, jpegBlob: Blob): Promise<Blob>`
+- `removeFromBlob(blob: Blob): Promise<Blob>` - Strip EXIF from JPEG, PNG, or WebP
 
 **Node.js (`@substrate-system/exif/node`)**
 - `loadFromFile(path: string): Exif`
 - `loadFromBuffer(buffer: Buffer): Exif`
 - `dumpToBuffer(exifData: Exif): Buffer`
 - `insertIntoBuffer(exifBuffer: Buffer, jpegBuffer: Buffer): Buffer`
+- `removeFromBuffer(buffer: Buffer): Buffer` - Strip EXIF from JPEG, PNG, or WebP
 - `modifyFile(input: string, output: string, callback: (data: Exif) => Exif): void`
 
 ### GPS Helper
