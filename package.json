@@ -4,6 +4,9 @@
   "version": "1.0.13",
   "description": "Read and write exif data.",
   "main": "dist/index.js",
+  "bin": {
+    "exif": "./dist/cli.js"
+  },
   "files": [
     "./dist/*"
   ],
@@ -23,20 +26,24 @@
     "test": "npm run test:node && npm run test:browser",
     "test:node": "esbuild ./test/index.ts --bundle --platform=node --format=esm | node",
     "test:browser": "esbuild ./test/browser.ts --bundle --loader:.jpg=binary | tapout",
-    "build-cjs": "esbuild $(find src/** -maxdepth 1 -name '*.ts' ! -name 'node.ts') --format=cjs --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.cjs --sourcemap",
-    "build-cjs:min": "esbuild $(find src/** -maxdepth 1 -name '*.ts' ! -name 'node.ts') --format=cjs --minify --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.min.cjs --sourcemap",
-    "build-esm": "esbuild $(find src/** -maxdepth 1 -name '*.ts' ! -name 'node.ts') --format=esm --metafile=dist/meta.json --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.build.json --outDir dist",
-    "build-esm:min": "esbuild $(find src/** -maxdepth 1 -name '*.ts' ! -name 'node.ts') --format=esm --keep-names --bundle --tsconfig=tsconfig.build.json --minify --out-extension:.js=.min.js --outdir=./dist --sourcemap",
+    "build-cjs": "esbuild $(find src/** -maxdepth 1 -name '*.ts' ! -name 'node.ts' ! -name 'cli.ts') --format=cjs --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.cjs --sourcemap",
+    "build-cjs:min": "esbuild $(find src/** -maxdepth 1 -name '*.ts' ! -name 'node.ts' ! -name 'cli.ts') --format=cjs --minify --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --out-extension:.js=.min.cjs --sourcemap",
+    "build-esm": "esbuild $(find src/** -maxdepth 1 -name '*.ts' ! -name 'node.ts' ! -name 'cli.ts') --format=esm --metafile=dist/meta.json --keep-names --tsconfig=tsconfig.build.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.build.json --outDir dist",
+    "build-esm:min": "esbuild $(find src/** -maxdepth 1 -name '*.ts' ! -name 'node.ts' ! -name 'cli.ts') --format=esm --keep-names --bundle --tsconfig=tsconfig.build.json --minify --out-extension:.js=.min.js --outdir=./dist --sourcemap",
     "build-example": "mkdir -p ./public && rm -rf ./public/* && vite --mode staging --base=\"/exif\" build",
     "build-docs": "typedoc ./src/index.ts",
-    "build": "mkdir -p ./dist && rm -rf ./dist/* && npm run build-cjs && npm run build-esm && npm run build-esm:min && npm run build-cjs:min && npm run build:node",
+    "build": "mkdir -p ./dist && rm -rf ./dist/* && npm run build-cjs && npm run build-esm && npm run build-esm:min && npm run build-cjs:min && npm run build:node && npm run build:cli",
     "build:node": "esbuild ./src/node.ts --format=esm --keep-names --tsconfig=tsconfig.node.json --outdir=./dist --sourcemap && tsc --emitDeclarationOnly --project tsconfig.node.json --outDir dist",
+    "build:cli": "esbuild ./src/cli.ts --format=esm --platform=node --bundle --packages=external --keep-names --tsconfig=tsconfig.node.json --outdir=./dist --sourcemap",
     "start": "vite",
     "toc": "markdown-toc --maxdepth 3 -i README.md",
     "preversion": "npm run lint",
     "version": "npm run toc && auto-changelog -p --template keepachangelog --breaking-pattern 'BREAKING CHANGE:' && git add CHANGELOG.md README.md",
     "postversion": "git push --follow-tags && npm publish",
     "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.2",
@@ -46,6 +53,7 @@
     "@substrate-system/tapout": "^0.0.30",
     "@substrate-system/tapzero": "^0.10.15",
     "@types/node": "^22.0.0",
+    "@types/yargs": "^17.0.35",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "auto-changelog": "^2.4.0",

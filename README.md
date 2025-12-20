@@ -266,6 +266,31 @@ const decimal = GPSHelper.dmsRationalToDeg([[37, 1], [46, 1], [2964, 100]], 'N')
 // Returns: 37.7749
 ```
 
+
+## CLI
+
+This exposes a command line interface.
+
+### Show available commands
+
+```sh
+exif --help
+```
+
+### Strip EXIF data
+
+```sh
+exif strip photo.jpg
+exif strip photo.jpg -o photo-clean.jpg
+```
+
+### Print EXIF summary as JSON
+
+```sh
+exif print photo.jpg
+```
+
+
 ## Modues
 
 This library uses named exports. You can import what you need:
