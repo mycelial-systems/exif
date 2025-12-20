@@ -29,6 +29,10 @@ Read and modify EXIF data in Browsers and Node.
 - [API](#api)
   * [Tag Constants](#tag-constants)
   * [Helpers](#helpers)
+- [CLI](#cli)
+  * [Show available commands](#show-available-commands)
+  * [Strip EXIF data](#strip-exif-data)
+  * [Print EXIF summary as JSON](#print-exif-summary-as-json)
 - [Modues](#modues)
 
 <!-- tocstop -->
