@@ -17,18 +17,16 @@ Read and modify EXIF data in Browsers and Node.
 <!-- toc -->
 
 - [Install](#install)
-- [Import Patterns](#import-patterns)
-- [Browser Usage](#browser-usage)
+- [Browsers](#browsers)
   * [Reading from a File Input](#reading-from-a-file-input)
   * [Reading from a URL](#reading-from-a-url)
 - [Node.js Usage](#nodejs-usage)
   * [Reading and Writing Files](#reading-and-writing-files)
   * [Working with Buffers](#working-with-buffers)
 - [API](#api)
-  * [Core Functions](#core-functions)
   * [Tag Constants](#tag-constants)
   * [Helpers](#helpers)
-  * [GPS Helper](#gps-helper)
+- [Modues](#modues)
 
 <!-- tocstop -->
 
@@ -40,27 +38,7 @@ Read and modify EXIF data in Browsers and Node.
 npm i -S @substrate-system/exif
 ```
 
-## Import Patterns
-
-This library uses named exports. You can import what you need:
-
-```ts
-// Named imports
-import {
-  load,
-  dump,
-  insert,
-  remove,
-  ImageIFD,
-  ExifIFD,
-  GPSIFD
-} from '@substrate-system/exif'
-
-// Or import everything as a namespace
-import * as exif from '@substrate-system/exif'
-```
-
-## Browser Usage
+## Browsers
 
 Import from the browser-specific entry point for utilities like
 `loadFromBlob` and `loadFromUrl`.
@@ -179,10 +157,6 @@ const newImageBuffer = exif.insertIntoBuffer(exifBuffer, buffer)
 
 ## API
 
-The library is built around `Uint8Array`, should work in Node or browsers.
-
-### Core Functions
-
 Available as named exports from all entry points.
 
 - `load(data: Uint8Array): Exif`
@@ -191,10 +165,6 @@ Available as named exports from all entry points.
   Convert an EXIF object into a binary array ready for insertion.
 - `insert(exifBinary: Uint8Array, jpegData: Uint8Array): Uint8Array`
   Insert an EXIF binary block into a JPEG binary array.
-- `remove(data: Uint8Array): Uint8Array`
-  Remove EXIF metadata from an image. Supports JPEG, PNG, and WebP formats.
-  Automatically detects the format via magic bytes. Returns the original
-  buffer unchanged if the format is unrecognized.
 
 ### Tag Constants
 
@@ -224,14 +194,20 @@ const altitude = exifData.GPS[GPSIFD.GPSAltitude]
 
 ### Helpers
 
-**Browser (`@substrate-system/exif/browser`)**
+#### Browser
+
+`@substrate-system/exif/browser`
+
 - `loadFromBlob(blob: Blob): Promise<Exif>`
 - `loadFromUrl(url: string): Promise<Exif>`
 - `dumpToBlob(exifData: Exif): Blob`
 - `insertIntoBlob(exifBlob: Blob, jpegBlob: Blob): Promise<Blob>`
 - `removeFromBlob(blob: Blob): Promise<Blob>` - Strip EXIF from JPEG, PNG, or WebP
 
-**Node.js (`@substrate-system/exif/node`)**
+#### Node JS
+
+`@substrate-system/exif/node`
+
 - `loadFromFile(path: string): Exif`
 - `loadFromBuffer(buffer: Buffer): Exif`
 - `dumpToBuffer(exifData: Exif): Buffer`
@@ -239,7 +215,7 @@ const altitude = exifData.GPS[GPSIFD.GPSAltitude]
 - `removeFromBuffer(buffer: Buffer): Buffer` - Strip EXIF from JPEG, PNG, or WebP
 - `modifyFile(input: string, output: string, callback: (data: Exif) => Exif): void`
 
-### GPS Helper
+#### GPS Helper
 
 The `GPSHelper` export provides utilities for GPS coordinate conversion:
 
@@ -253,4 +229,24 @@ const dmsRational = GPSHelper.degToDmsRational(37.7749)
 // Convert DMS rational format back to decimal degrees
 const decimal = GPSHelper.dmsRationalToDeg([[37, 1], [46, 1], [2964, 100]], 'N')
 // Returns: 37.7749
+```
+
+## Modues
+
+This library uses named exports. You can import what you need:
+
+```ts
+// Named imports
+import {
+  load,
+  dump,
+  insert,
+  remove,
+  ImageIFD,
+  ExifIFD,
+  GPSIFD
+} from '@substrate-system/exif'
+
+// Or import everything as a namespace
+import * as exif from '@substrate-system/exif'
 ```
