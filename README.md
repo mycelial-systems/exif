@@ -7,7 +7,6 @@
 [![Common Changelog](https://nichoth.github.io/badge/common-changelog.svg)](./CHANGELOG.md)
 [![install size](https://flat.badgen.net/packagephobia/install/@substrate-system/exif)](https://packagephobia.com/result?p=@substrate-system/exif)
 [![gzip size](https://flat.badgen.net/bundlephobia/minzip/@substrate-system/exif)](https://bundlephobia.com/package/@substrate-system/exif)
-[![dependencies](https://img.shields.io/badge/dependencies-zero-brightgreen.svg?style=flat-square)](package.json)
 [![license](https://img.shields.io/badge/license-Big_Time-blue?style=flat-square)](LICENSE)
 
 Read and modify EXIF data in Browsers and Node.
