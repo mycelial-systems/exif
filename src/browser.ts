@@ -3,7 +3,8 @@
  */
 
 import type { Exif } from './index.js'
-import { load, dump, insert, remove } from './index.js'
+import { load, dump, insert } from './index.js'
+import { stripExif as remove } from './remove.js'
 
 /**
  * Convert Blob to Uint8Array

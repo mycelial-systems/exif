@@ -5,16 +5,19 @@ import { type ExifValue } from './index.js'
  */
 
 /**
- * Pack numbers into a Uint8Array according to format string
- * Format: '<' or '>' for endianness, followed by format chars (B=byte, H=short, L=long, l=signed long)
+ * Pack numbers into a Uint8Array according to format string.
+ *
+ * Format: '<' or '>' for endianness, followed by format chars
+ *   B=byte, H=short, L=long, l=signed long)
  * Example: pack('>H', [257]) => Uint8Array of 2 bytes
  */
-export function pack (format: string, values: number[]): Uint8Array {
+export function pack (format:string, values:number[]):Uint8Array {
     if (!Array.isArray(values)) {
         throw new Error("'pack' error. Got invalid type argument.")
     }
     if ((format.length - 1) !== values.length) {
-        throw new Error(`'pack' error. ${format.length - 1} marks, ${values.length} elements.`)
+        throw new Error(`'pack' error. ${format.length - 1} marks,` +
+            ` ${values.length} elements.`)
     }
 
     const littleEndian = format[0] === '<'
@@ -88,7 +91,8 @@ export function unpack (format:string, data:Uint8Array):ExifValue[] {
     }
 
     if (expectedLength !== data.length) {
-        throw new Error(`'unpack' error. Mismatch between symbol and data length. ${expectedLength}:${data.length}`)
+        throw new Error("'unpack' error. Mismatch between symbol and data " +
+            `length. ${expectedLength}:${data.length}`)
     }
 
     const littleEndian = format[0] === '<'
@@ -130,7 +134,7 @@ export function unpack (format:string, data:Uint8Array):ExifValue[] {
 /**
  * Create a Uint8Array filled with a repeating byte pattern
  */
-export function repeat (byte: number, count: number): Uint8Array {
+export function repeat (byte:number, count:number):Uint8Array {
     const result = new Uint8Array(count)
     result.fill(byte)
     return result
@@ -139,12 +143,15 @@ export function repeat (byte: number, count: number): Uint8Array {
 /**
  * Concatenate multiple Uint8Arrays
  */
-export function concat (...arrays: Uint8Array[]): Uint8Array {
+export function concat (...arrays:Uint8Array[]): Uint8Array {
     const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0)
     const result = new Uint8Array(totalLength)
     let offset = 0
     for (const arr of arrays) {
-        result.set(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength), offset)
+        result.set(
+            new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength),
+            offset
+        )
         offset += arr.length
     }
     return result
@@ -153,7 +160,13 @@ export function concat (...arrays: Uint8Array[]): Uint8Array {
 /**
  * Compare two Uint8Arrays for equality at a specific position
  */
-export function equals (a: Uint8Array, b: Uint8Array, aOffset = 0, bOffset = 0, length?: number): boolean {
+export function equals (
+    a:Uint8Array,
+    b:Uint8Array,
+    aOffset = 0,
+    bOffset = 0,
+    length?:number
+):boolean {
     const len = length ?? Math.min(a.length - aOffset, b.length - bOffset)
     for (let i = 0; i < len; i++) {
         if (a[aOffset + i] !== b[bOffset + i]) return false
@@ -164,7 +177,7 @@ export function equals (a: Uint8Array, b: Uint8Array, aOffset = 0, bOffset = 0, 
 /**
  * Convert a string to Uint8Array (for ASCII/EXIF strings)
  */
-export function stringToBytes (str: string): Uint8Array {
+export function stringToBytes (str:string):Uint8Array {
     const bytes = new Uint8Array(str.length)
     for (let i = 0; i < str.length; i++) {
         bytes[i] = str.charCodeAt(i) & 0xff
@@ -175,7 +188,7 @@ export function stringToBytes (str: string): Uint8Array {
 /**
  * Convert Uint8Array to string (for ASCII/EXIF strings)
  */
-export function bytesToString (bytes: Uint8Array): string {
+export function bytesToString (bytes:Uint8Array):string {
     let str = ''
     for (let i = 0; i < bytes.length; i++) {
         str += String.fromCharCode(bytes[i])
@@ -186,6 +199,6 @@ export function bytesToString (bytes: Uint8Array): string {
 /**
  * Create format string with repeated character
  */
-export function formatString (char: string, count: number): string {
+export function formatString (char:string, count:number):string {
     return char.repeat(count)
 }

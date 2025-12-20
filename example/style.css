@@ -1,0 +1,103 @@
+.app {
+    padding: 20px;
+    font-family: sans-serif;
+}
+
+button {
+    cursor: pointer;
+}
+
+h1, h2, p {
+    margin-bottom: 1rem;
+}
+
+h3 {
+    margin-bottom: 0.4rem;
+}
+
+.section {
+    margin-bottom: 20px;
+}
+
+.url-form {
+    display: flex;
+    gap: 10px;
+}
+
+.url-input {
+    width: 300px;
+}
+
+.error {
+    color: red;
+    margin-bottom: 20px;
+}
+
+.content {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.preview-container {
+    max-width: 400px;
+}
+
+.preview-image {
+    max-width: 100%;
+}
+
+.exif-container {
+    flex: 1;
+    min-width: 300px;
+}
+
+.exif-summary {
+    margin: 0 0 20px 0;
+    padding: 0;
+}
+
+.exif-field {
+    display: flex;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.exif-field:last-child {
+    border-bottom: none;
+}
+
+.exif-field dt {
+    font-weight: 600;
+    color: #666;
+    width: 120px;
+    flex-shrink: 0;
+}
+
+.exif-field dd {
+    margin: 0;
+}
+
+.no-data {
+    color: #999;
+    font-style: italic;
+}
+
+.raw-data {
+    margin-top: 20px;
+}
+
+.raw-data summary {
+    cursor: pointer;
+    color: #666;
+    font-size: 14px;
+}
+
+.exif-data {
+    background: #f4f4f4;
+    padding: 10px;
+    overflow: auto;
+    max-height: 400px;
+    font-size: 12px;
+    margin-top: 10px;
+}

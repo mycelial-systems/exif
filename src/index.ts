@@ -18,7 +18,6 @@ import {
     bytesToString,
     equals
 } from './binary-utils.js'
-import { stripExif } from './remove.js'
 
 export type ExifValue = number|number[]|string|[number, number]|[number, number][]
 
@@ -38,9 +37,6 @@ export interface Exif {
     Interop?:ExifElement;
     thumbnail?:Uint8Array|null;
 }
-
-// Re-export stripExif as remove for backwards compatibility
-export { stripExif as remove } from './remove.js'
 
 export function insert (exif:Uint8Array, jpeg:Uint8Array):Uint8Array {
     if (!equals(exif, EXIF_HEADER, 0, 0, 6)) {
@@ -600,11 +596,96 @@ export const GPSHelper = {
     }
 }
 
+// Re-export tag constants
+export * as ImageIFD from './tags/image-ifd.js'
+export * as ExifIFD from './tags/exif-ifd.js'
+export * as GPSIFD from './tags/gps-ifd.js'
+
+// Lookup tables for human-readable values
+export const ExposurePrograms: Record<number, string> = {
+    0: 'Not defined',
+    1: 'Manual',
+    2: 'Normal program',
+    3: 'Aperture priority',
+    4: 'Shutter priority',
+    5: 'Creative program',
+    6: 'Action program',
+    7: 'Portrait mode',
+    8: 'Landscape mode',
+}
+
+export const MeteringModes: Record<number, string> = {
+    0: 'Unknown',
+    1: 'Average',
+    2: 'Center-weighted average',
+    3: 'Spot',
+    4: 'Multi-spot',
+    5: 'Pattern',
+    6: 'Partial',
+    255: 'Other',
+}
+
+export const FlashModes: Record<number, string> = {
+    0x0: 'No flash',
+    0x1: 'Fired',
+    0x5: 'Fired, return not detected',
+    0x7: 'Fired, return detected',
+    0x8: 'On, did not fire',
+    0x9: 'On, fired',
+    0xd: 'On, return not detected',
+    0xf: 'On, return detected',
+    0x10: 'Off, did not fire',
+    0x14: 'Off, did not fire, return not detected',
+    0x18: 'Auto, did not fire',
+    0x19: 'Auto, fired',
+    0x1d: 'Auto, fired, return not detected',
+    0x1f: 'Auto, fired, return detected',
+    0x20: 'No flash function',
+    0x30: 'Off, no flash function',
+    0x41: 'Fired, red-eye reduction',
+    0x45: 'Fired, red-eye reduction, return not detected',
+    0x47: 'Fired, red-eye reduction, return detected',
+    0x49: 'On, red-eye reduction',
+    0x4d: 'On, red-eye reduction, return not detected',
+    0x4f: 'On, red-eye reduction, return detected',
+    0x50: 'Off, red-eye reduction',
+    0x58: 'Auto, did not fire, red-eye reduction',
+    0x59: 'Auto, fired, red-eye reduction',
+    0x5d: 'Auto, fired, red-eye reduction, return not detected',
+    0x5f: 'Auto, fired, red-eye reduction, return detected',
+}
+
+export const ColorSpaces: Record<number, string> = {
+    1: 'sRGB',
+    65535: 'Uncalibrated',
+}
+
+export const WhiteBalanceModes: Record<number, string> = {
+    0: 'Auto',
+    1: 'Manual',
+}
+
+export const Orientations: Record<number, string> = {
+    1: 'Horizontal (normal)',
+    2: 'Mirror horizontal',
+    3: 'Rotate 180',
+    4: 'Mirror vertical',
+    5: 'Mirror horizontal and rotate 270 CW',
+    6: 'Rotate 90 CW',
+    7: 'Mirror horizontal and rotate 90 CW',
+    8: 'Rotate 270 CW',
+}
+
+export const ResolutionUnits: Record<number, string> = {
+    1: 'No absolute unit',
+    2: 'Inch',
+    3: 'Centimeter',
+}
+
 export default {
     insert,
     load,
     dump,
-    remove: stripExif,
     InteropIFD,
     GPSHelper,
 }
