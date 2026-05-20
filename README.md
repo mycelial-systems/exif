@@ -73,7 +73,7 @@ Just remove all the exif data from an image.
 ```ts
 import { stripExif } from '@substrate-system/exif/remove'
 
-const stripped = stripExif(jpeg)
+const stripped = stripExif(jpeg)  // => Uint8Array
 ```
 
 ## Browsers
