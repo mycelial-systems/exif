@@ -15,6 +15,14 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./remove": {
+      "import": "./dist/remove.js",
+      "require": "./dist/remove.cjs"
+    },
+    "./summary": {
+      "import": "./dist/summary.js",
+      "require": "./dist/summary.cjs"
+    },
     "./node": "./dist/node.js",
     "./*": {
       "import": "./dist/*.js",
