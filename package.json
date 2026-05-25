@@ -1,7 +1,7 @@
 {
   "name": "@substrate-system/exif",
   "type": "module",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "Read and write exif data.",
   "main": "dist/index.js",
   "bin": {
